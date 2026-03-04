@@ -1,0 +1,40 @@
+database:
+  path: "./data/alphaforge.db"
+
+paths:
+  archive_dir: "./data/archive"
+  equity_curves_dir: "./data/equity_curves"
+  attachments_dir: "./data/attachments"
+  realtest_output_dir: null  # User sets this to their RealTest output folder
+
+realtest:
+  stats_csv_columns:
+    # Mapping from RealTest CSV column headers to internal metric names
+    "Test": "test_number"
+    "Name": "strategy_name"
+    "Dates": "date_range"
+    "Periods": "periods"
+    "NetProfit": "net_profit"
+    "comp": "compound_return"
+    "ROR": "rate_of_return"
+    "MaxDD": "max_drawdown"
+    "MAR": "mar"
+    "Trades": "total_trades"
+    "PctWins": "pct_wins"
+    "Expectancy": "expectancy"
+    "AvgWin": "avg_win"
+    "AvgLoss": "avg_loss"
+    "WinLen": "win_length"
+    "LossLen": "loss_length"
+    "ProfitFactor": "profit_factor"
+    "Sharpe": "sharpe"
+    "AvgExp": "avg_exposure"
+    "MaxExp": "max_exposure"
+
+server:
+  port: 8501
+  host: "localhost"
+
+backup:
+  enabled: false
+  target_dir: null
