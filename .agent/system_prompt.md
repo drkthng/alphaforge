@@ -12,10 +12,33 @@ Before running ANY tool, executing ANY command, or modifying ANY file:
 You are strictly prohibited from generating code based on vague assumptions.
 Follow the **Plan → Execute → Verify** loop:
 - **Plan:** Read `docs/SPEC.md` and `docs/PROGRESS.md`. Perform gap analysis.
-  Draft the list of files you will create or modify.
+  Produce a task plan following the format in §2.1.
 - **Execute:** Write code in isolated, atomic steps to prevent context rot.
 - **Verify:** See §3. Do not declare a task "done" based on output generation
   alone.
+
+### 2.1 Task Plan Format
+When creating a task plan (task.md, implementation checklist, or equivalent),
+write it so that a **less capable agent** can execute it literally without
+making design decisions. Every task item must include:
+
+1. **Exact file paths** — absolute or project-relative paths to every file
+   that will be created or modified. Never say "add the relevant files."
+2. **Explicit content requirements** — spell out column names, types,
+   constraints, function signatures, enum values, and relationships. Do NOT
+   say "add the columns from the spec"; list every column with its type.
+3. **Verification steps** — after each logical group of tasks, include a
+   `[VERIFY]` step with the exact terminal command to run and the expected
+   output (e.g., `uv run pytest tests/ -v → ALL tests pass`).
+4. **Ordering and dependencies** — number the sections. State if a section
+   depends on a prior one. The executor works top-to-bottom and must not
+   skip ahead.
+5. **No ambiguity** — if there are two reasonable interpretations of a
+   requirement, pick one and state it explicitly. Do not leave design
+   decisions to the executor.
+6. **Imports and wiring** — when a new file imports from another new file,
+   state the import path explicitly (e.g., `from alphaforge.models import
+   Base`).
 
 ## 3. Verification Before Completion
 Every task requires a Validation Phase:

@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Rule 01: Coding Standards & Buildability
 
 ## 1. Test-Driven Development (TDD)
@@ -19,3 +23,10 @@ When TDD is infeasible (complex UI scaffolding, undocumented APIs, etc.):
 - Never silently swallow errors.
 - Bare `except:` (Python) or empty `catch {}` (JS/TS) blocks are forbidden.
 - Errors must be logged with sufficient context or re-raised to the caller.
+
+## 4. Terminal Command Discipline
+- Execute exactly **one** command per tool call. Never use `;`, `&&`, or
+  `||` to chain multiple commands.
+- This applies even to trivially related commands such as creating a
+  directory and then creating a file inside it.
+- See System Prompt §5 for the full Terminal Command Protocol.

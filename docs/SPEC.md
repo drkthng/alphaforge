@@ -1,25 +1,46 @@
-# Project Specification
-
-> **Fill this out before writing any code.** This is the single source of
-> truth that the AI agent reads to understand what to build.
+# Project Specification: AlphaForge
 
 ## 1. Overview
-<!-- What is this project? One paragraph. -->
+AlphaForge is a local-first desktop tool for managing systematic/quantitative trading strategy research. It ingests backtesting outputs from RealTest, versions strategy code files (.rts), and provides a dashboard for tracking strategies from idea to live deployment.
 
 ## 2. Goals & Non-Goals
-<!-- What are you building? What are you explicitly NOT building? -->
+**Goals**:
+- Ingest and archive RealTest (.rts) strategy files.
+- Track backtest runs with parameters and metrics.
+- Store equity curves and trade logs as Parquet files.
+- Provide a Streamlit-based dashboard for research analysis.
+- Manage a "Research Pipeline" from inbox to deployment.
+
+**Non-Goals**:
+- Live trading execution (AlphaForge is a research tool).
+- Strategy development environment (use RealTest for coding).
+- Real-time data feeds (local-first, ingest-based).
 
 ## 3. Architecture
-<!-- High-level system design. List major components/services. -->
+- **Storage Layer**: SQLite for metadata, Parquet for time-series (equity curves, trade logs).
+- **Core Logic**: Python/SQLAlchemy 2.0 ORM.
+- **Config**: Pydantic-validated YAML.
+- **Migrations**: Alembic.
+- **UI Layer**: Streamlit (Phase 2+).
 
 ## 4. Tech Stack
-<!-- Languages, frameworks, databases, infrastructure. -->
-<!-- The agent uses these names to generate rule files in              -->
-<!-- .agent/rules/tech-stacks/. Use lowercase hyphenated names         -->
-<!-- (e.g., "react", "python-fastapi", "electron").                    -->
+- **Language**: Python 3.11+
+- **Database**: SQLite / SQLAlchemy 2.0
+- **Migrations**: Alembic
+- **Format**: Parquet / PyArrow
+- **Dependency Management**: uv
+- **Frontend**: Streamlit
 
 ## 5. Requirements
-<!-- Functional requirements as a numbered list. -->
+1. **Strategy Management**: Create, unique slug generation, status tracking.
+2. **Version Control**: SHA-256 based deduplication of .rts files.
+3. **Run Tracking**: Parameter-hash based duplicate detection.
+4. **Metrics**: Store 16 core metrics and custom JSON metrics.
+5. **Lookup Tables**: Universes and Pipeline Statuses.
+6. **Cascade Deletes**: Strategies cascade to versions/runs/notes.
 
 ## 6. Milestones
-<!-- Ordered list of deliverables. The agent works through these sequentially. -->
+- **Phase 0**: Project Scaffolding & Data Modeling (Current)
+- **Phase 1**: Ingestion Engine & RTS Archiving
+- **Phase 2**: Dashboard & Equity Curve Analysis
+- **Phase 3**: Research Notes & Full Strategy Lifecycle
