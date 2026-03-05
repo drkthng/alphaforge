@@ -9,3 +9,9 @@
    build/test command. Confirm the codebase is healthy BEFORE making changes.
 5. **Branch check** — confirm you are on a feature branch, not
    `main`/`master`.
+6. **Write task.md** — produce the task plan following System Prompt §2.1
+   format EXACTLY. Every item must have exact file paths, literal code
+   snippets or diffs, `[VERIFY]` commands with expected output, and
+   numbered dependency ordering. A vague high-level checklist is NOT
+   acceptable — the plan must be executable by a less capable agent
+   without making any design decisions.

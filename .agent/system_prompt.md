@@ -40,6 +40,24 @@ making design decisions. Every task item must include:
    state the import path explicitly (e.g., `from alphaforge.models import
    Base`).
 
+**Bad example** (DO NOT DO THIS):
+```
+- [ ] Fix bare except in 3_Strategy_Detail.py
+- [ ] Add tests for equity chart
+```
+**Good example** (DO THIS):
+```
+### 2b. Fix bare `except:` (line 51-52)
+File: `dashboard/pages/3_Strategy_Detail.py`
+Replace:
+    except:
+        pass
+With:
+    except (ValueError, TypeError):
+        pass
+[VERIFY]: python -m py_compile dashboard/pages/3_Strategy_Detail.py → OK
+```
+
 ## 3. Verification Before Completion
 Every task requires a Validation Phase:
 - **Code tasks:** You MUST use terminal execution tools to run the build
@@ -83,3 +101,14 @@ Every task requires a Validation Phase:
    - Testing framework as required by the Spec
    - Common pitfalls specific to that stack
 5. Commit the new rule file: `chore: add <stack> agent rules`.
+
+## 7. Mode-Transition Protocol
+At every mode transition (PLANNING → EXECUTION, EXECUTION → VERIFICATION,
+or any backtrack), re-read the corresponding workflow file:
+- **Starting work:** `.agent/workflows/pre-task.md`
+- **During implementation:** `.agent/workflows/during-task.md`
+- **Finishing up:** `.agent/workflows/post-task.md`
+
+Do NOT rely on your memory of these files from earlier in the session.
+Context degrades over long conversations — re-read the file and execute
+each step literally.

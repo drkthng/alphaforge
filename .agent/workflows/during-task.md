@@ -14,3 +14,7 @@ description:
    tools to check rendering and console for errors.
 5. **Obstacle logging** — if a dependency fails, an API is deprecated, or a
    workaround is needed, log it immediately in `docs/OBSTACLES.md`.
+6. **Gate before user review** — before calling `notify_user` or requesting
+   any user review, confirm: have you updated `docs/OBSTACLES.md` with any
+   issues encountered during this session? If issues were encountered and
+   not logged, do it NOW before proceeding.
