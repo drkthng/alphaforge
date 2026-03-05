@@ -38,7 +38,7 @@ def show_create_form():
 
 def render_strategy_card(strat):
     with st.container(border=True):
-        st.markdown(f"**{strat['name']}**")
+        st.markdown(f"**[{strat['name']}](/Strategy_Detail?strategy_id={strat['id']})**")
         st.markdown(render_status_badge(strat['status'].value), unsafe_allow_html=True)
         
         st.write(f"Runs: {strat['run_count']}")
