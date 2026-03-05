@@ -6,6 +6,12 @@
 ## In Progress
 
 ## Completed
+- [x] `2026-03-05` Phase 4 — Research Capture & Inbox Management
+  - [x] Quick Capture page with URL title fetch
+  - [x] Orphan notes and strategy linking
+  - [x] Enhanced Pipeline Inbox with promotion dialog
+  - [x] Settings page with backup system
+  - [x] Global sidebar search (FTS5 indexed)
 - [x] `2026-03-05` Phase 3 — Strategy Detail View & Equity Curves
   - [x] Added `plotly` dependency
   - [x] Fixed bugs in `3_Strategy_Detail.py` (bare except, pandas filters, set_page_config, file upload)
