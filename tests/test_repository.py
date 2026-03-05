@@ -163,3 +163,87 @@ def test_universe_find_or_create(session):
     
     assert repo.find_by_name("S&P 500") is not None
     assert repo.find_by_name("Nasdaq") is None
+
+def test_get_strategies_with_stats(session):
+    strat_repo = StrategyRepository(session)
+    s1 = strat_repo.create(name="S1", status=StrategyStatus.testing)
+    s2 = strat_repo.create(name="S2", status=StrategyStatus.deployed)
+    
+    v_repo = VersionRepository(session)
+    v1 = v_repo.create(strategy_id=s1.id, version_number=1)
+    
+    b_repo = BacktestRepository(session)
+    r1 = b_repo.create(
+        version_id=v1.id,
+        run_date=datetime.now(),
+        date_range_start=date(2020, 1, 1),
+        date_range_end=date(2023, 1, 1),
+        parameter_hash="p1",
+        parameters_json={}
+    )
+    
+    m_repo = MetricsRepository(session)
+    m_repo.create(run_id=r1.id, cagr=25.0, max_drawdown=-15.0)
+    
+    session.commit()
+    
+    stats = strat_repo.get_strategies_with_stats()
+    assert len(stats) == 2
+    s1_stats = next(s for s in stats if s["name"] == "S1")
+    assert s1_stats["run_count"] == 1
+    assert s1_stats["best_cagr"] == 25.0
+    assert s1_stats["worst_maxdd"] == -15.0
+    
+    # Test filtering
+    testing_stats = strat_repo.get_strategies_with_stats(status=StrategyStatus.testing)
+    assert len(testing_stats) == 1
+    assert testing_stats[0]["name"] == "S1"
+
+def test_get_leaderboard(session):
+    strat_repo = StrategyRepository(session)
+    s1 = strat_repo.create(name="S1")
+    
+    v_repo = VersionRepository(session)
+    v1 = v_repo.create(strategy_id=s1.id, version_number=1)
+    
+    b_repo = BacktestRepository(session)
+    r1 = b_repo.create(
+        version_id=v1.id,
+        run_date=datetime(2023, 1, 1),
+        date_range_start=date(2020, 1, 1),
+        date_range_end=date(2023, 1, 1),
+        parameter_hash="p1",
+        parameters_json={}
+    )
+    
+    m_repo = MetricsRepository(session)
+    m_repo.create(run_id=r1.id, cagr=25.0, sharpe=2.0, max_drawdown=-10.0)
+    
+    session.commit()
+    
+    b_repo = BacktestRepository(session)
+    leaderboard = b_repo.get_leaderboard(filters={})
+    assert len(leaderboard) == 1
+    assert leaderboard[0]["strategy_name"] == "S1"
+    assert leaderboard[0]["cagr"] == 25.0
+    
+    count = b_repo.get_leaderboard_count(filters={})
+    assert count == 1
+
+def test_metrics_get_available_custom_metrics(session):
+    m_repo = MetricsRepository(session)
+    m_repo.create(run_id=1, custom_metrics_json={"alpha": 1, "beta": 2})
+    m_repo.create(run_id=2, custom_metrics_json={"beta": 3, "gamma": 4})
+    session.commit()
+    
+    custom = m_repo.get_available_custom_metrics()
+    assert custom == ["alpha", "beta", "gamma"]
+
+def test_universe_list_all(session):
+    repo = UniverseRepository(session)
+    repo.create(name="U1")
+    repo.create(name="U2")
+    session.commit()
+    
+    universes = repo.list_all()
+    assert len(universes) == 2
