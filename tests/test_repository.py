@@ -1,0 +1,165 @@
+import pytest
+from datetime import datetime, date
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from alphaforge.models import Base, Strategy, StrategyVersion, BacktestRun, RunMetrics, Universe, StrategyStatus
+from alphaforge.repository import (
+    StrategyRepository, VersionRepository, BacktestRepository,
+    MetricsRepository, UniverseRepository, ArtifactRepository,
+)
+
+@pytest.fixture
+def session():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    yield session
+    session.close()
+
+def test_strategy_create_and_get(session):
+    repo = StrategyRepository(session)
+    strat = repo.create(name="My Strat", description="Test")
+    session.commit()
+    
+    fetched = repo.get_by_id(strat.id)
+    assert fetched.name == "My Strat"
+    assert fetched.slug == "my-strat"
+
+def test_strategy_find_by_name(session):
+    repo = StrategyRepository(session)
+    repo.create(name="Alpha")
+    session.commit()
+    
+    assert repo.find_by_name("Alpha") is not None
+    assert repo.find_by_name("Beta") is None
+
+def test_strategy_find_by_slug(session):
+    repo = StrategyRepository(session)
+    repo.create(name="Super Strategy")
+    session.commit()
+    
+    assert repo.find_by_slug("super-strategy") is not None
+
+def test_strategy_list_all(session):
+    repo = StrategyRepository(session)
+    repo.create(name="S1")
+    repo.create(name="S2")
+    repo.create(name="S3")
+    session.commit()
+    
+    assert len(repo.list_all()) == 3
+
+def test_strategy_update(session):
+    repo = StrategyRepository(session)
+    strat = repo.create(name="Old Name")
+    session.commit()
+    
+    updated = repo.update(strat.id, name="New Name")
+    assert updated.name == "New Name"
+
+def test_strategy_delete(session):
+    repo = StrategyRepository(session)
+    strat = repo.create(name="Delete Me")
+    session.commit()
+    
+    assert repo.delete(strat.id) is True
+    assert repo.get_by_id(strat.id) is None
+
+def test_version_create_and_next_number(session):
+    strat_repo = StrategyRepository(session)
+    strat = strat_repo.create(name="S1")
+    session.commit()
+    
+    repo = VersionRepository(session)
+    assert repo.get_next_version_number(strat.id) == 1
+    
+    v1 = repo.create(strategy_id=strat.id, version_number=1)
+    session.commit()
+    assert repo.get_next_version_number(strat.id) == 2
+
+def test_version_find_by_hash(session):
+    strat_repo = StrategyRepository(session)
+    strat = strat_repo.create(name="S1")
+    session.commit()
+    
+    repo = VersionRepository(session)
+    repo.create(strategy_id=strat.id, version_number=1, rts_sha256="hash123")
+    session.commit()
+    
+    assert repo.find_by_hash(strat.id, "hash123") is not None
+    assert repo.find_by_hash(strat.id, "other") is None
+
+def test_backtest_create_and_find_duplicates(session):
+    strat_repo = StrategyRepository(session)
+    strat = strat_repo.create(name="S1")
+    session.commit()
+    
+    v_repo = VersionRepository(session)
+    v = v_repo.create(strategy_id=strat.id, version_number=1)
+    session.commit()
+    
+    repo = BacktestRepository(session)
+    run = repo.create(
+        version_id=v.id,
+        run_date=datetime.now(),
+        date_range_start=date(2020, 1, 1),
+        date_range_end=date(2023, 1, 1),
+        parameter_hash="p123",
+        parameters_json={}
+    )
+    session.commit()
+    
+    dupes = repo.find_duplicates(v.id, "p123")
+    assert len(dupes) == 1
+    assert dupes[0].id == run.id
+
+def test_backtest_list_by_strategy(session):
+    strat_repo = StrategyRepository(session)
+    strat = strat_repo.create(name="S1")
+    session.commit()
+    
+    v_repo = VersionRepository(session)
+    v = v_repo.create(strategy_id=strat.id, version_number=1)
+    session.commit()
+    
+    repo = BacktestRepository(session)
+    repo.create(
+        version_id=v.id,
+        run_date=datetime.now(),
+        date_range_start=date(2020, 1, 1),
+        date_range_end=date(2023, 1, 1),
+        parameter_hash="h1",
+        parameters_json={}
+    )
+    repo.create(
+        version_id=v.id,
+        run_date=datetime.now(),
+        date_range_start=date(2020, 1, 1),
+        date_range_end=date(2023, 1, 1),
+        parameter_hash="h2",
+        parameters_json={}
+    )
+    session.commit()
+    
+    assert len(repo.list_by_strategy(strat.id)) == 2
+
+def test_metrics_create_and_update(session):
+    # Setup manually
+    run_id = 1 
+    repo = MetricsRepository(session)
+    metrics = repo.create(run_id=run_id, sharpe=1.5)
+    session.commit()
+    
+    assert metrics.sharpe == 1.5
+    
+    updated = repo.update(run_id, sharpe=2.0)
+    assert updated.sharpe == 2.0
+
+def test_universe_find_or_create(session):
+    repo = UniverseRepository(session)
+    u = repo.create(name="S&P 500")
+    session.commit()
+    
+    assert repo.find_by_name("S&P 500") is not None
+    assert repo.find_by_name("Nasdaq") is None
