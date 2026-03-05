@@ -23,3 +23,10 @@ build/
 # Environment
 .env
 .env.local
+
+# Databases
+*.db
+data/*.db
+
+# Temporary scripts
+cleanup_db.py

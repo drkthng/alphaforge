@@ -234,10 +234,11 @@ class ResearchNote(Base):
     __tablename__ = "research_note"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    strategy_id: Mapped[int] = mapped_column(ForeignKey("strategy.id"), nullable=False)
+    strategy_id: Mapped[Optional[int]] = mapped_column(ForeignKey("strategy.id"), nullable=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     note_type: Mapped[NoteType] = mapped_column(Enum(NoteType), nullable=False, default=NoteType.idea)
+    tags: Mapped[Optional[List[str]]] = mapped_column(JSON)
     
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -251,12 +252,13 @@ class Attachment(Base):
     __tablename__ = "attachment"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    strategy_id: Mapped[int] = mapped_column(ForeignKey("strategy.id"), nullable=False)
+    strategy_id: Mapped[Optional[int]] = mapped_column(ForeignKey("strategy.id"), nullable=True)
     attachment_type: Mapped[AttachmentType] = mapped_column(Enum(AttachmentType), nullable=False)
     file_path: Mapped[Optional[str]] = mapped_column(String)
     url: Mapped[Optional[str]] = mapped_column(String)
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
+    tags: Mapped[Optional[List[str]]] = mapped_column(JSON)
     
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

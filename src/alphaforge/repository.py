@@ -1,5 +1,8 @@
 from typing import Optional, List, Any, Dict
-from sqlalchemy import select, func, desc
+import os
+import shutil
+import datetime
+from sqlalchemy import select, func, desc, text
 from sqlalchemy.orm import Session
 
 from alphaforge.models import (
@@ -382,11 +385,25 @@ class NoteRepository:
             ).all()
         )
 
-    def create(self, strategy_id: int, title: str, body: str, note_type: NoteType) -> ResearchNote:
-        db_obj = ResearchNote(strategy_id=strategy_id, title=title, body=body, note_type=note_type)
+    def create(self, title: str, body: str, note_type: NoteType, strategy_id: int = None, tags: List[str] = None) -> ResearchNote:
+        db_obj = ResearchNote(strategy_id=strategy_id, title=title, body=body, note_type=note_type, tags=tags)
         self.session.add(db_obj)
         self.session.flush()
         return db_obj
+
+    def get_orphan_notes(self) -> List[ResearchNote]:
+        return list(
+            self.session.scalars(
+                select(ResearchNote).where(ResearchNote.strategy_id.is_(None))
+            ).all()
+        )
+
+    def link_to_strategy(self, note_ids: List[int], strategy_id: int) -> None:
+        for nid in note_ids:
+            obj = self.session.get(ResearchNote, nid)
+            if obj:
+                obj.strategy_id = strategy_id
+        self.session.flush()
 
     def update(self, note_id: int, **kwargs) -> Optional[ResearchNote]:
         db_obj = self.session.get(ResearchNote, note_id)
@@ -419,19 +436,28 @@ class AttachmentRepository:
             ).all()
         )
 
-    def create(self, strategy_id: int, attachment_type: AttachmentType, title: str,
-               file_path: str = None, url: str = None, description: str = None) -> Attachment:
+    def create(self, attachment_type: AttachmentType, title: str,
+               strategy_id: int = None, file_path: str = None, url: str = None, 
+               description: str = None, tags: List[str] = None) -> Attachment:
         db_obj = Attachment(
             strategy_id=strategy_id,
             attachment_type=attachment_type,
             title=title,
             file_path=file_path,
             url=url,
-            description=description
+            description=description,
+            tags=tags
         )
         self.session.add(db_obj)
         self.session.flush()
         return db_obj
+
+    def link_to_strategy(self, attachment_ids: List[int], strategy_id: int) -> None:
+        for aid in attachment_ids:
+            obj = self.session.get(Attachment, aid)
+            if obj:
+                obj.strategy_id = strategy_id
+        self.session.flush()
 
     def delete(self, attachment_id: int) -> bool:
         db_obj = self.session.get(Attachment, attachment_id)
@@ -440,3 +466,40 @@ class AttachmentRepository:
             self.session.flush()
             return True
         return False
+
+
+class SystemRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def get_database_stats(self, db_path: str) -> Dict[str, Any]:
+        tables = ["strategy", "strategy_version", "backtest_run", "research_note", "attachment"]
+        stats = {}
+        for table in tables:
+            stmt = select(func.count()).select_from(text(table))
+            count = self.session.scalar(stmt)
+            stats[table] = count
+        
+        file_size = os.path.getsize(db_path) if os.path.exists(db_path) else 0
+        stats["db_file_size_mb"] = round(file_size / (1024 * 1024), 2)
+        return stats
+
+    def export_backup(self, current_db_path: str, data_dir: str, target_dir: str) -> str:
+        os.makedirs(target_dir, exist_ok=True)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_folder = os.path.join(target_dir, f"backup_{timestamp}")
+        os.makedirs(backup_folder)
+        
+        # Copy SQLite file
+        db_filename = os.path.basename(current_db_path)
+        shutil.copy2(current_db_path, os.path.join(backup_folder, db_filename))
+        
+        # Copy data folder
+        if os.path.exists(data_dir):
+            shutil.copytree(data_dir, os.path.join(backup_folder, "data"))
+        
+        return backup_folder
+
+    def search_all(self, query_string: str) -> List[Dict[str, Any]]:
+        # This will be populated later with FTS5 query, returning empty for now
+        return []

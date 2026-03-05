@@ -3,8 +3,8 @@ import pandas as pd
 from datetime import datetime, date
 from alphaforge.database import get_engine, SessionLocal
 from alphaforge.config import load_config
-from alphaforge.repository import StrategyRepository
-from alphaforge.models import StrategyStatus
+from alphaforge.repository import StrategyRepository, NoteRepository
+from alphaforge.models import StrategyStatus, NoteType
 from components.status_badge import render_status_badge
 
 # Session management
@@ -36,6 +36,37 @@ def show_create_form():
                 session.close()
                 st.rerun()
 
+def render_orphan_note(note):
+    with st.container(border=True):
+        st.caption(f"📝 {note.note_type.value.title()}")
+        st.markdown(f"**{note.title}**")
+        if note.tags:
+            st.markdown(" ".join([f"`{t}`" for t in note.tags]))
+        st.write(note.body[:100] + ("..." if len(note.body) > 100 else ""))
+        
+        # Link action
+        if st.button("Link to Strat", key=f"link_note_{note.id}"):
+            st.session_state[f"linking_note_{note.id}"] = True
+            st.rerun()
+
+@st.dialog("Promote Strategy")
+def show_promote_dialog(strat_id, strat_name):
+    st.write(f"Refining **{strat_name}**")
+    plan = st.text_area("What is the refinement plan?", placeholder="e.g. Test with different slippage, try on SPY...")
+    
+    if st.button("Confirm Promotion"):
+        session = get_session()
+        repo_local = StrategyRepository(session)
+        # Update status and description (appending plan)
+        strat = repo_local.get_by_id(strat_id)
+        if strat:
+            strat.status = StrategyStatus.refined
+            if plan:
+                strat.description = (strat.description or "") + f"\n\nRefinement Plan:\n{plan}"
+            session.commit()
+        session.close()
+        st.rerun()
+
 def render_strategy_card(strat):
     with st.container(border=True):
         st.markdown(f"**[{strat['name']}](/Strategy_Detail?strategy_id={strat['id']})**")
@@ -59,12 +90,15 @@ def render_strategy_card(strat):
         )
         
         if new_status != strat['status']:
-            session = get_session()
-            repo_local = StrategyRepository(session)
-            repo_local.update_status(strat['id'], new_status)
-            session.commit()
-            session.close()
-            st.rerun()
+            if new_status == StrategyStatus.refined and strat['status'] == StrategyStatus.inbox:
+                show_promote_dialog(strat['id'], strat['name'])
+            else:
+                session = get_session()
+                repo_local = StrategyRepository(session)
+                repo_local.update_status(strat['id'], new_status)
+                session.commit()
+                session.close()
+                st.rerun()
 
 def main():
     st.title("🚀 Research Pipeline")
@@ -110,6 +144,19 @@ def main():
     for i, status in enumerate(primary_statuses):
         with cols[i]:
             st.subheader(status.value.replace("_", " ").title())
+            
+            # Special handling for Inbox orphans
+            if status == StrategyStatus.inbox:
+                session = get_session()
+                note_repo = NoteRepository(session)
+                orphans = note_repo.get_orphan_notes()
+                session.close()
+                if orphans:
+                    with st.expander(f"📥 Unlinked Items ({len(orphans)})", expanded=True):
+                        for note in orphans:
+                            render_orphan_note(note)
+                    st.markdown("---")
+
             status_strats = [s for s in strategies if s["status"] == status]
             if not status_strats:
                 st.caption("Empty")
