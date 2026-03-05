@@ -5,7 +5,7 @@ from alphaforge.database import get_engine, SessionLocal
 from alphaforge.config import load_config
 from alphaforge.repository import StrategyRepository
 from alphaforge.models import StrategyStatus
-from dashboard.components.status_badge import render_status_badge
+from components.status_badge import render_status_badge
 
 # Session management
 @st.cache_resource

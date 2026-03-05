@@ -6,7 +6,7 @@ from alphaforge.database import get_engine, SessionLocal
 from alphaforge.config import load_config
 from alphaforge.repository import StrategyRepository, BacktestRepository, MetricsRepository, UniverseRepository
 from alphaforge.models import StrategyStatus
-from dashboard.components.metrics_table import render_metrics_comparison_table
+from components.metrics_table import render_metrics_comparison_table
 
 # Session management
 @st.cache_resource
