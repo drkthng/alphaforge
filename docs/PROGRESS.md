@@ -6,6 +6,10 @@
 ## In Progress
 
 ## Completed
+- [x] `2026-03-05` Phase 3 — Strategy Detail View & Equity Curves
+  - [x] Added `plotly` dependency
+  - [x] Fixed bugs in `3_Strategy_Detail.py` (bare except, pandas filters, set_page_config, file upload)
+  - [x] Added tests for equity chart logic and trade log filters
 - [x] `2026-03-04` Phase 0 — Project Scaffolding & Data Modeling
   - [x] SDD Scaffolding via `scaffold-sdd.py`
   - [x] Dependency installation (`uv sync`)

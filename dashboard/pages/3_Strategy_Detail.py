@@ -28,8 +28,6 @@ def get_session():
     return get_db_session_factory()()
 
 def main():
-    st.set_page_config(page_title="Strategy Detail - AlphaForge", layout="wide")
-    
     session = get_session()
     
     # Repositories
@@ -48,7 +46,7 @@ def main():
     if strategy_id:
         try:
             strategy = strat_repo.get_by_id(int(strategy_id))
-        except:
+        except (ValueError, TypeError):
             pass
             
     if not strategy:
@@ -146,7 +144,17 @@ def main():
                 att_file = st.file_uploader("Upload File")
                 
                 if st.form_submit_button("Save Attachment"):
-                    attach_repo.create(strategy.id, att_type, att_title, url=att_url)
+                    saved_path = None
+                    if att_file is not None:
+                        attach_dir = Path("data/attachments")
+                        attach_dir.mkdir(parents=True, exist_ok=True)
+                        dest = attach_dir / att_file.name
+                        dest.write_bytes(att_file.getbuffer())
+                        saved_path = str(dest)
+                    attach_repo.create(
+                        strategy.id, att_type, att_title,
+                        file_path=saved_path, url=att_url if att_url else None
+                    )
                     session.commit()
                     st.success("Attachment added!")
                     st.rerun()
@@ -332,9 +340,9 @@ def main():
                     
                     filtered_trades = df_trades
                     if symbols:
-                        filtered_trades = filtered_trades[filtered_trades["Symbol"].in_(symbols)]
+                        filtered_trades = filtered_trades[filtered_trades["Symbol"].isin(symbols)]
                     if direction:
-                        filtered_trades = filtered_trades[filtered_trades["Direction"].in_(direction)]
+                        filtered_trades = filtered_trades[filtered_trades["Direction"].isin(direction)]
                         
                     st.dataframe(filtered_trades, use_container_width=True, hide_index=True)
                 else:

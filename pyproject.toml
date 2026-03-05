@@ -15,6 +15,7 @@ dependencies = [
     "typer>=0.9",
     "rich",
     "click",
+    "plotly",
 ]
 requires-python = ">=3.11"
 
