@@ -47,8 +47,17 @@ def render_sidebar():
     
     st.sidebar.markdown("---")
     st.sidebar.page_link("pages/1_Pipeline.py", label="Pipeline", icon="🚀")
+    st.sidebar.page_link("pages/4_Capture.py", label="Quick Capture", icon="⚡")
     st.sidebar.page_link("pages/2_Leaderboard.py", label="Leaderboard", icon="🏆")
     st.sidebar.page_link("pages/3_Strategy_Detail.py", label="Strategy Detail", icon="🔍")
+    st.sidebar.page_link("pages/5_Settings.py", label="Settings", icon="⚙️")
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🔍 Global Search")
+    search_query = st.sidebar.text_input("Search ideas & strategies...", key="global_search", placeholder="Press Ctrl+K")
+    if search_query:
+        st.sidebar.info(f"FTS results for: {search_query}")
+        # Placeholder for real search execution
     
     st.sidebar.markdown("---")
     if st.sidebar.button("Ingest New Data"):
