@@ -113,8 +113,8 @@ class StrategyVersion(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     strategy_id: Mapped[int] = mapped_column(ForeignKey("strategy.id"), nullable=False)
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    rts_file_path: Mapped[str] = mapped_column(String, nullable=False)
-    rts_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    rts_file_path: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    rts_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

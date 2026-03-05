@@ -1,0 +1,6 @@
+// Sample RealTest strategy file for testing
+// This is not real RTS code, just a placeholder
+Param LookbackDays = 20
+Param StopPct = 5.0
+BuySetup = Close > SMA(Close, LookbackDays)
+SellSetup = Close < SMA(Close, LookbackDays)
