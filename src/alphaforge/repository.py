@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 
 from alphaforge.models import (
     Strategy, StrategyVersion, BacktestRun, RunMetrics,
-    RunArtifact, Universe, slugify, StrategyStatus
+    RunArtifact, Universe, slugify, StrategyStatus,
+    ResearchNote, NoteType, Attachment, AttachmentType
 )
 
 
@@ -119,6 +120,15 @@ class VersionRepository:
             .order_by(StrategyVersion.version_number.desc())
         ).first()
 
+    def list_by_strategy(self, strategy_id: int) -> List[StrategyVersion]:
+        return list(
+            self.session.scalars(
+                select(StrategyVersion)
+                .where(StrategyVersion.strategy_id == strategy_id)
+                .order_by(StrategyVersion.version_number.desc())
+            ).all()
+        )
+
 
 class BacktestRepository:
     def __init__(self, session: Session):
@@ -164,6 +174,7 @@ class BacktestRepository:
         stmt = (
             select(
                 BacktestRun.id.label("run_id"),
+                Strategy.id.label("strategy_id"),
                 Strategy.name.label("strategy_name"),
                 StrategyVersion.version_number,
                 BacktestRun.run_date,
@@ -246,6 +257,49 @@ class BacktestRepository:
 
         return self.session.scalar(stmt) or 0
 
+    def get_runs_for_strategy(self, strategy_id: int, version_id: int = None) -> List[Dict[str, Any]]:
+        stmt = (
+            select(
+                BacktestRun.id.label("run_id"),
+                StrategyVersion.version_number,
+                BacktestRun.run_date,
+                BacktestRun.parameters_json,
+                BacktestRun.equity_curve_path,
+                BacktestRun.trade_log_path,
+                Universe.name.label("universe"),
+                RunMetrics.net_profit,
+                RunMetrics.compound_return,
+                RunMetrics.rate_of_return,
+                RunMetrics.cagr,
+                RunMetrics.max_drawdown,
+                RunMetrics.mar,
+                RunMetrics.total_trades,
+                RunMetrics.pct_wins,
+                RunMetrics.expectancy,
+                RunMetrics.avg_win,
+                RunMetrics.avg_loss,
+                RunMetrics.win_length,
+                RunMetrics.loss_length,
+                RunMetrics.profit_factor,
+                RunMetrics.sharpe,
+                RunMetrics.avg_exposure,
+                RunMetrics.max_exposure,
+                RunMetrics.custom_metrics_json
+            )
+            .join(StrategyVersion, BacktestRun.version_id == StrategyVersion.id)
+            .join(RunMetrics, BacktestRun.id == RunMetrics.run_id)
+            .outerjoin(Universe, BacktestRun.universe_id == Universe.id)
+            .where(StrategyVersion.strategy_id == strategy_id)
+        )
+        
+        if version_id:
+            stmt = stmt.where(StrategyVersion.id == version_id)
+            
+        stmt = stmt.order_by(BacktestRun.run_date.desc())
+        
+        result = self.session.execute(stmt)
+        return [dict(row) for row in result.mappings()]
+
 
 class MetricsRepository:
     def __init__(self, session: Session):
@@ -313,3 +367,76 @@ class ArtifactRepository:
 
     def list_by_run(self, run_id: int) -> List[RunArtifact]:
         return list(self.session.scalars(select(RunArtifact).where(RunArtifact.run_id == run_id)).all())
+
+
+class NoteRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def list_by_strategy(self, strategy_id: int) -> List[ResearchNote]:
+        return list(
+            self.session.scalars(
+                select(ResearchNote)
+                .where(ResearchNote.strategy_id == strategy_id)
+                .order_by(ResearchNote.created_at.desc(), ResearchNote.id.desc())
+            ).all()
+        )
+
+    def create(self, strategy_id: int, title: str, body: str, note_type: NoteType) -> ResearchNote:
+        db_obj = ResearchNote(strategy_id=strategy_id, title=title, body=body, note_type=note_type)
+        self.session.add(db_obj)
+        self.session.flush()
+        return db_obj
+
+    def update(self, note_id: int, **kwargs) -> Optional[ResearchNote]:
+        db_obj = self.session.get(ResearchNote, note_id)
+        if db_obj:
+            for key, value in kwargs.items():
+                if hasattr(db_obj, key):
+                    setattr(db_obj, key, value)
+            self.session.flush()
+        return db_obj
+
+    def delete(self, note_id: int) -> bool:
+        db_obj = self.session.get(ResearchNote, note_id)
+        if db_obj:
+            self.session.delete(db_obj)
+            self.session.flush()
+            return True
+        return False
+
+
+class AttachmentRepository:
+    def __init__(self, session: Session):
+        self.session = session
+
+    def list_by_strategy(self, strategy_id: int) -> List[Attachment]:
+        return list(
+            self.session.scalars(
+                select(Attachment)
+                .where(Attachment.strategy_id == strategy_id)
+                .order_by(Attachment.created_at.desc())
+            ).all()
+        )
+
+    def create(self, strategy_id: int, attachment_type: AttachmentType, title: str,
+               file_path: str = None, url: str = None, description: str = None) -> Attachment:
+        db_obj = Attachment(
+            strategy_id=strategy_id,
+            attachment_type=attachment_type,
+            title=title,
+            file_path=file_path,
+            url=url,
+            description=description
+        )
+        self.session.add(db_obj)
+        self.session.flush()
+        return db_obj
+
+    def delete(self, attachment_id: int) -> bool:
+        db_obj = self.session.get(Attachment, attachment_id)
+        if db_obj:
+            self.session.delete(db_obj)
+            self.session.flush()
+            return True
+        return False

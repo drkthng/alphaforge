@@ -128,6 +128,9 @@ def main():
             df[m] = df['custom_metrics_json'].apply(lambda x: x.get(m) if isinstance(x, dict) else None)
     
     df_display = df.drop(columns=['custom_metrics_json'])
+    
+    # Add Detail link
+    df_display["Detail"] = df_display["strategy_id"].apply(lambda sid: f"/Strategy_Detail?strategy_id={sid}")
 
     # Formatting and Styling
     # Percentile ranks for color coding (approximate for the current viewed page)
@@ -150,6 +153,7 @@ def main():
     
     col_config = {
         "run_id": st.column_config.NumberColumn("ID"),
+        "Detail": st.column_config.LinkColumn("View", display_text="🔍 Detail"),
         "strategy_name": st.column_config.TextColumn("Strategy"),
         "version_number": st.column_config.NumberColumn("V"),
         "run_date": st.column_config.DateColumn("Run Date"),

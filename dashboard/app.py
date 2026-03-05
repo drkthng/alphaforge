@@ -46,6 +46,11 @@ def render_sidebar():
     st.sidebar.metric("Total Runs", total_runs)
     
     st.sidebar.markdown("---")
+    st.sidebar.page_link("pages/1_Pipeline.py", label="Pipeline", icon="🚀")
+    st.sidebar.page_link("pages/2_Leaderboard.py", label="Leaderboard", icon="🏆")
+    st.sidebar.page_link("pages/3_Strategy_Detail.py", label="Strategy Detail", icon="🔍")
+    
+    st.sidebar.markdown("---")
     if st.sidebar.button("Ingest New Data"):
         st.sidebar.info("Run the following command in your terminal to ingest data:")
         st.sidebar.code("uv run alphaforge ingest <path_to_csv>")
