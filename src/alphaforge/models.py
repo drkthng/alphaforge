@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 import enum
 import re
 from typing import List, Optional, Dict, Any
@@ -61,6 +61,13 @@ class AttachmentType(str, enum.Enum):
     other = "other"
 
 
+class DeploymentEntryType(str, enum.Enum):
+    trade = "trade"
+    note = "note"
+    performance_update = "performance_update"
+    issue = "issue"
+
+
 class PipelineStatus(Base):
     """Lookup table for strategy statuses."""
     __tablename__ = "pipeline_status"
@@ -92,6 +99,9 @@ class Strategy(Base):
     attachments: Mapped[List["Attachment"]] = relationship(
         back_populates="strategy", cascade="all, delete-orphan"
     )
+    deployments: Mapped[List["DeploymentEntry"]] = relationship(
+        back_populates="strategy", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Strategy(name={self.name!r}, status={self.status!r})>"
@@ -121,6 +131,9 @@ class StrategyVersion(Base):
     # Relationships
     strategy: Mapped["Strategy"] = relationship(back_populates="versions")
     runs: Mapped[List["BacktestRun"]] = relationship(
+        back_populates="version", cascade="all, delete-orphan"
+    )
+    walk_forward_studies: Mapped[List["WalkForwardStudy"]] = relationship(
         back_populates="version", cascade="all, delete-orphan"
     )
 
@@ -264,3 +277,55 @@ class Attachment(Base):
 
     # Relationships
     strategy: Mapped["Strategy"] = relationship(back_populates="attachments")
+
+
+class WalkForwardStudy(Base):
+    """Container for walk-forward optimization runs."""
+    __tablename__ = "walk_forward_study"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    strategy_version_id: Mapped[int] = mapped_column(ForeignKey("strategy_version.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    version: Mapped["StrategyVersion"] = relationship(back_populates="walk_forward_studies")
+    windows: Mapped[List["WalkForwardWindow"]] = relationship(
+        back_populates="study", cascade="all, delete-orphan"
+    )
+
+
+class WalkForwardWindow(Base):
+    """A single IS/OOS window within a walk-forward study."""
+    __tablename__ = "walk_forward_window"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    study_id: Mapped[int] = mapped_column(ForeignKey("walk_forward_study.id"), nullable=False)
+    window_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    
+    is_run_id: Mapped[Optional[int]] = mapped_column(ForeignKey("backtest_run.id"))
+    oos_run_id: Mapped[Optional[int]] = mapped_column(ForeignKey("backtest_run.id"))
+    
+    is_start: Mapped[date] = mapped_column(Date, nullable=False)
+    is_end: Mapped[date] = mapped_column(Date, nullable=False)
+    oos_start: Mapped[date] = mapped_column(Date, nullable=False)
+    oos_end: Mapped[date] = mapped_column(Date, nullable=False)
+
+    # Relationships
+    study: Mapped["WalkForwardStudy"] = relationship(back_populates="windows")
+
+
+class DeploymentEntry(Base):
+    """Manual entries to track live performance and issues."""
+    __tablename__ = "deployment_entry"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    strategy_id: Mapped[int] = mapped_column(ForeignKey("strategy.id"), nullable=False)
+    entry_date: Mapped[date] = mapped_column(Date, nullable=False)
+    entry_type: Mapped[DeploymentEntryType] = mapped_column(Enum(DeploymentEntryType), nullable=False)
+    details: Mapped[str] = mapped_column(Text, nullable=False)
+    live_equity: Mapped[Optional[float]] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    strategy: Mapped["Strategy"] = relationship(back_populates="deployments")

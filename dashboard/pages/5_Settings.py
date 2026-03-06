@@ -55,6 +55,22 @@ def main():
             session.close()
 
     st.markdown("---")
+    st.header("Database Actions")
+    if st.button("Recompute Custom Metrics"):
+        with st.spinner("Recomputing metrics for all runs..."):
+            session = get_session()
+            from alphaforge.repository import BacktestRepository
+            b_repo = BacktestRepository(session)
+            try:
+                count = b_repo.recompute_custom_metrics()
+                session.commit()
+                st.success(f"Successfully recomputed custom metrics for {count} runs.")
+            except Exception as e:
+                st.error(f"Failed to recompute metrics: {e}")
+            finally:
+                session.close()
+
+    st.markdown("---")
     st.header("About")
     st.write("AlphaForge Version: 0.1.0")
     st.write("Link to [GitHub](https://github.com/mhptrading/alphaforge)")

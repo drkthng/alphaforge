@@ -163,6 +163,7 @@ def main():
         "net_profit": st.column_config.NumberColumn("Net Profit", format="$%.0f"),
         "total_trades": st.column_config.NumberColumn("Trades"),
         "pct_wins": st.column_config.NumberColumn("Win Rate (%)", format="%.2f%%"),
+        "is_in_sample": st.column_config.CheckboxColumn("IS"),
         "Compare": st.column_config.CheckboxColumn("Compare", default=False)
     }
 

@@ -41,6 +41,11 @@ def render_equity_chart(run_selections: list[dict], normalize: bool = False, log
             st.warning(f"Equity curve data not found for: {label}")
             continue
 
+        # Split Line
+        split_date = run.get("sample_split_date")
+        if split_date:
+            fig.add_vline(x=split_date, line_dash="dash", line_color="#888", annotation_text="IS/OOS", row="all", col=1)
+
         # Load data
         mtime = os.path.getmtime(path)
         df = _load_equity_data(path, mtime)

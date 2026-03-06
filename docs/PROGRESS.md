@@ -6,6 +6,12 @@
 ## In Progress
 
 ## Completed
+- [x] `2026-03-06` Phase 5 — Advanced Analytics & Robustness
+  - [x] Custom metrics engine with `@metric` decorator
+  - [x] Background recomputation of metrics from Parquet curves
+  - [x] IS/OOS filtering and split-line visualization
+  - [x] Parameter Heatmap with multi-dim slicing
+  - [x] Database models for Walk-Forward and Deployment Journals
 - [x] `2026-03-05` Phase 4 — Research Capture & Inbox Management
   - [x] Quick Capture page with URL title fetch
   - [x] Orphan notes and strategy linking

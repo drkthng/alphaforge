@@ -195,6 +195,7 @@ class BacktestRepository:
                 RunMetrics.pct_wins,
                 RunMetrics.expectancy,
                 RunMetrics.avg_exposure,
+                BacktestRun.is_in_sample,
                 RunMetrics.custom_metrics_json
             )
             .join(StrategyVersion, BacktestRun.version_id == StrategyVersion.id)
@@ -267,6 +268,8 @@ class BacktestRepository:
                 StrategyVersion.version_number,
                 BacktestRun.run_date,
                 BacktestRun.parameters_json,
+                BacktestRun.is_in_sample,
+                BacktestRun.sample_split_date,
                 BacktestRun.equity_curve_path,
                 BacktestRun.trade_log_path,
                 Universe.name.label("universe"),
@@ -302,6 +305,40 @@ class BacktestRepository:
         
         result = self.session.execute(stmt)
         return [dict(row) for row in result.mappings()]
+
+    def recompute_custom_metrics(self) -> int:
+        """Loads equity curves for all runs and recomputes all registered custom metrics."""
+        from alphaforge.analysis.custom_metrics import CUSTOM_METRICS_REGISTRY
+        import pandas as pd
+        
+        # Get all runs that have an equity curve
+        runs = self.session.scalars(
+            select(BacktestRun).where(BacktestRun.equity_curve_path.is_not(None))
+        ).all()
+        
+        count = 0
+        for run in runs:
+            if os.path.exists(run.equity_curve_path):
+                try:
+                    df = pd.read_parquet(run.equity_curve_path)
+                    custom_results = {}
+                    for name, func in CUSTOM_METRICS_REGISTRY.items():
+                        try:
+                            custom_results[name] = func(df)
+                        except Exception as e:
+                            # Log error but continue
+                            continue
+                    
+                    if not run.metrics:
+                        run.metrics = RunMetrics(run_id=run.id)
+                    
+                    run.metrics.custom_metrics_json = custom_results
+                    count += 1
+                except Exception:
+                    continue
+        
+        self.session.flush()
+        return count
 
 
 class MetricsRepository:

@@ -249,7 +249,8 @@ def main():
                     run_selections.append({
                         "run_id": rid,
                         "label": f"v{r['version_number']} ({r['run_date']:%Y-%m-%d})",
-                        "equity_curve_path": r["equity_curve_path"]
+                        "equity_curve_path": r["equity_curve_path"],
+                        "sample_split_date": r.get("sample_split_date")
                     })
                 
                 render_equity_chart(run_selections, normalize=norm, log_scale=log)
@@ -261,12 +262,35 @@ def main():
             st.subheader("All Backtest Runs")
             
             # Version Filter
-            v_filter = st.selectbox("Filter by Version", ["All"] + [f"v{v.version_number}" for v in versions])
-            filtered_runs = runs
-            if v_filter != "All":
-                v_num = int(v_filter[1:])
-                filtered_runs = [r for r in runs if r["version_number"] == v_num]
-            
+            # IS/OOS Comparison
+            if v_filter != "All" and versions:
+                try:
+                    v_num = int(v_filter[1:])
+                    v_runs = [r for r in runs if r["version_number"] == v_num]
+                    is_run = next((r for r in v_runs if r.get("is_in_sample")), None)
+                    oos_run = next((r for r in v_runs if r.get("is_in_sample") == False), None) # Explicit False check
+                    
+                    if is_run and oos_run:
+                        st.markdown("### 🌓 IS vs OOS Comparison")
+                        is_sharpe = is_run.get("sharpe") or 0
+                        oos_sharpe = oos_run.get("sharpe") or 0
+                        
+                        if is_sharpe != 0:
+                            degrad = (oos_sharpe - is_sharpe) / abs(is_sharpe) * 100
+                        else:
+                            degrad = 0
+                            
+                        m_col1, m_col2, m_col3 = st.columns(3)
+                        m_col1.metric("IS Sharpe", f"{is_sharpe:.2f}")
+                        m_col2.metric("OOS Sharpe", f"{oos_sharpe:.2f}", delta=f"{degrad:.1f}%", delta_color="inverse")
+                        
+                        if oos_sharpe < (is_sharpe * 0.5):
+                            st.warning("⚠️ High Degradation: OOS Sharpe is less than 50% of IS Sharpe!")
+                        
+                        st.divider()
+                except (ValueError, StopIteration):
+                    pass
+
             if filtered_runs:
                 df_metrics = pd.DataFrame(filtered_runs)
                 
@@ -302,10 +326,70 @@ def main():
             else:
                 st.info("No runs found for selected filters.")
 
-        # Tab 3: Heatmap (Placeholder)
+        # Tab 3: Heatmap
         with tab3:
-            st.info("🔥 Parameter Heatmap functionality is scheduled for Phase 5.")
-            st.image("https://raw.githubusercontent.com/plotly/datasets/master/heatmap_chart.png", caption="Example Heatmap (Phase 5 Preview)")
+            from alphaforge.analysis.heatmap import prepare_heatmap_data
+            st.subheader("Parameter Heatmap")
+            
+            # Extract all parameters varied across all runs for this strategy
+            all_params = set()
+            for r in runs:
+                p_json = r.get("parameters_json")
+                if isinstance(p_json, dict):
+                    all_params.update(p_json.keys())
+            
+            if not all_params:
+                st.info("No parameters found for this strategy runs.")
+            else:
+                h_col1, h_col2, h_col3 = st.columns(3)
+                with h_col1:
+                    x_p = st.selectbox("X-Axis Parameter", sorted(list(all_params)), index=0)
+                with h_col2:
+                    y_p = st.selectbox("Y-Axis Parameter", sorted(list(all_params)), index=min(1, len(all_params)-1))
+                with h_col3:
+                    # Generic metrics + custom ones
+                    core_metrics = ["cagr", "sharpe", "max_drawdown", "mar", "profit_factor", "net_profit"]
+                    
+                    # Custom metrics keys from existing data
+                    unique_custom_keys = set()
+                    for r in runs:
+                        c_m = r.get("custom_metrics_json")
+                        if isinstance(c_m, dict):
+                            unique_custom_keys.update(c_m.keys())
+                    
+                    met = st.selectbox("Color Metric", core_metrics + sorted(list(unique_custom_keys)))
+                
+                # Filter for other parameters
+                remaining_params = sorted([p for p in all_params if p not in [x_p, y_p]])
+                fixed_params = {}
+                if remaining_params:
+                    st.markdown("##### Filter Remaining Parameters")
+                    f_cols = st.columns(min(len(remaining_params), 4))
+                    for idx, p in enumerate(remaining_params):
+                        # Find unique values for this parameter across all runs
+                        unique_vals = sorted(list(set(
+                            r.get("parameters_json", {}).get(p) 
+                            for r in runs 
+                            if isinstance(r.get("parameters_json"), dict) and r.get("parameters_json", {}).get(p) is not None
+                        )))
+                        with f_cols[idx % 4]:
+                            fixed_params[p] = st.selectbox(f"Fix {p}", unique_vals, key=f"fix_{p}")
+                
+                heatmap_df = prepare_heatmap_data(runs, x_p, y_p, met, fixed_params)
+                
+                if heatmap_df.empty:
+                    st.warning("No data found for this parameter combination. Try adjusting filters.")
+                else:
+                    import plotly.express as px
+                    fig_heat = px.imshow(
+                        heatmap_df,
+                        text_auto=".2f",
+                        aspect="auto",
+                        color_continuous_scale="RdYlGn" if met not in ["max_drawdown"] else "RdYlGn_r",
+                        labels=dict(x=x_p, y=y_p, color=met),
+                        title=f"{met} Heatmap: {x_p} vs {y_p}"
+                    )
+                    st.plotly_chart(fig_heat, use_container_width=True)
 
         # Tab 4: Trade Log
         with tab4:
