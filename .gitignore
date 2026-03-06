@@ -30,3 +30,6 @@ data/*.db
 
 # Temporary scripts
 cleanup_db.py
+
+# Logs
+*.log

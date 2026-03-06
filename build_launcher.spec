@@ -20,7 +20,6 @@ hiddenimports = [
     'alphaforge.analysis',
     'alphaforge.analysis.custom_metrics',
     'alphaforge.analysis.heatmap',
-    'alphaforge.dashboard.app',
     'win32timezone'
 ]
 
@@ -60,7 +59,7 @@ exe = EXE(
 coll = COLLECT(
     exe,
     a.binaries,
-    datas,
+    a.datas,
     strip=False,
     upx=True,
     upx_exclude=[],
