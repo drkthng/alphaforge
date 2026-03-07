@@ -75,7 +75,7 @@ def render_equity_chart(run_selections: list[dict], normalize: bool = False, log
                 y=equity_series, 
                 name=label,
                 line=dict(color=color),
-                hovertemplate="%{x|%Y-%m-%d}<br>Equity: %{y:,.2f}<extra></extra>"
+                hovertemplate=f"{label}<br>%{{x|%Y-%m-%d}}<br>Equity: %{{y:,.2f}}<extra></extra>"
             ),
             row=1, col=1
         )
@@ -122,7 +122,7 @@ def render_equity_chart(run_selections: list[dict], normalize: bool = False, log
     fig.update_layout(
         height=700,
         hovermode='x unified',
-        template="plotly_white",
+        template="plotly_dark",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         margin=dict(l=0, r=0, t=50, b=0)
     )

@@ -538,5 +538,26 @@ class SystemRepository:
         return backup_folder
 
     def search_all(self, query_string: str) -> List[Dict[str, Any]]:
-        # This will be populated later with FTS5 query, returning empty for now
-        return []
+        """Search strategies and notes by name/title/body using LIKE."""
+        results = []
+        like_q = f"%{query_string}%"
+
+        # Search strategies
+        strats = self.session.execute(
+            select(Strategy.id, Strategy.name, Strategy.status)
+            .where(Strategy.name.ilike(like_q))
+        ).mappings().all()
+        for s in strats:
+            results.append({"type": "strategy", "id": s["id"], "title": s["name"], "detail": s["status"].value})
+
+        # Search research notes
+        notes = self.session.execute(
+            select(ResearchNote.id, ResearchNote.title, ResearchNote.strategy_id)
+            .where(
+                (ResearchNote.title.ilike(like_q)) | (ResearchNote.body.ilike(like_q))
+            )
+        ).mappings().all()
+        for n in notes:
+            results.append({"type": "note", "id": n["id"], "title": n["title"], "detail": f"strategy_id={n['strategy_id']}"})
+
+        return results

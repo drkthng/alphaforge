@@ -2,12 +2,12 @@ import streamlit as st
 import os
 from alphaforge.database import get_engine, SessionLocal
 from alphaforge.config import load_config
-from alphaforge.repository import StrategyRepository, BacktestRepository
+from components.sidebar import render_sidebar
 
 # Configure Page
 st.set_page_config(
-    page_title="AlphaForge",
-    page_icon="⚒️",
+    page_title="AlphaForge — Home",
+    page_icon="🔥",
     layout="wide",
 )
 
@@ -22,60 +22,30 @@ def get_session():
     Session = get_db_session_factory()
     return Session()
 
-# Sidebar
-def render_sidebar():
-    st.sidebar.title("⚒️ AlphaForge")
-    st.sidebar.markdown("---")
-    
-    # Quick Stats
-    session = get_session()
-    strat_repo = StrategyRepository(session)
-    b_repo = BacktestRepository(session)
-    
-    try:
-        total_strategies = len(strat_repo.list_all())
-        total_runs = b_repo.get_leaderboard_count({})
-    except Exception as e:
-        total_strategies = 0
-        total_runs = 0
-        st.sidebar.error(f"Error loading stats: {e}")
-    finally:
-        session.close()
-    
-    st.sidebar.metric("Total Strategies", total_strategies)
-    st.sidebar.metric("Total Runs", total_runs)
-    
-    st.sidebar.markdown("---")
-    st.sidebar.page_link("pages/1_Pipeline.py", label="Pipeline", icon="🚀")
-    st.sidebar.page_link("pages/4_Capture.py", label="Quick Capture", icon="⚡")
-    st.sidebar.page_link("pages/2_Leaderboard.py", label="Leaderboard", icon="🏆")
-    st.sidebar.page_link("pages/3_Strategy_Detail.py", label="Strategy Detail", icon="🔍")
-    st.sidebar.page_link("pages/5_Settings.py", label="Settings", icon="⚙️")
-    
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🔍 Global Search")
-    search_query = st.sidebar.text_input("Search ideas & strategies...", key="global_search", placeholder="Press Ctrl+K")
-    if search_query:
-        st.sidebar.info(f"FTS results for: {search_query}")
-        # Placeholder for real search execution
-    
-    st.sidebar.markdown("---")
-    if st.sidebar.button("Ingest New Data"):
-        st.sidebar.info("Run the following command in your terminal to ingest data:")
-        st.sidebar.code("uv run alphaforge ingest <path_to_csv>")
+# Sidebar (Removed inline - moved to components/sidebar.py)
 
 def main():
     render_sidebar()
     
-    st.title("AlphaForge Dashboard")
-    st.write("Welcome to AlphaForge, your local-first quant strategy research tool.")
+    st.title("🔥 AlphaForge")
+    st.markdown("Your local-first quant strategy research management system.")
+    st.divider()
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("### 📥 Inbox")
+        st.markdown("Capture ideas, hypotheses, and observations.")
+        st.page_link("pages/0_Inbox.py", label="Open Inbox →")
+    with col2:
+        st.markdown("### 🚀 Pipeline")
+        st.markdown("Track strategies from idea to deployment.")
+        st.page_link("pages/1_Pipeline.py", label="Open Pipeline →")
+    with col3:
+        st.markdown("### 🏆 Leaderboard")
+        st.markdown("Compare backtest runs across all strategies.")
+        st.page_link("pages/2_Leaderboard.py", label="Open Leaderboard →")
     
-    st.markdown("""
-    ### Research Tools
-    - **[Pipeline](/Pipeline)**: Manage your research workflow from idea to deployment.
-    - **[Leaderboard](/Leaderboard)**: Compare all your backtest runs across strategies.
-    """)
-    
+    st.divider()
     st.info("👈 Use the sidebar to navigate between views.")
 
 if __name__ == "__main__":

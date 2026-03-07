@@ -1,20 +1,18 @@
 import streamlit as st
+st.set_page_config(page_title="AlphaForge — Inbox", page_icon="🔥", layout="wide")
+
 import requests
 from bs4 import BeautifulSoup
 from alphaforge.database import get_engine, SessionLocal
 from alphaforge.config import load_config
 from alphaforge.repository import NoteRepository, StrategyRepository
 from alphaforge.models import NoteType, StrategyStatus
-
-# Session management
-@st.cache_resource
-def get_db_session_factory():
-    config = load_config()
-    engine = get_engine(config.database.path)
-    return SessionLocal(engine)
+from components.sidebar import render_sidebar
 
 def get_session():
-    return get_db_session_factory()()
+    config = load_config()
+    engine = get_engine(config.database.path)
+    return SessionLocal(engine)()
 
 def fetch_url_title(url: str) -> str:
     try:
@@ -28,8 +26,11 @@ def fetch_url_title(url: str) -> str:
     return ""
 
 def main():
-    st.title("⚡ Quick Capture")
-
+    render_sidebar()
+    
+    st.title("📥 Inbox")
+    st.markdown("Capture ideas, hypotheses, and observations.")
+    
     session = get_session()
     strat_repo = StrategyRepository(session)
     note_repo = NoteRepository(session)
@@ -45,23 +46,25 @@ def main():
         strat_options[f"{s.name}"] = s.id
 
     with st.form("capture_form", clear_on_submit=True):
-        title = st.text_input("Title (Required)")
-        
-        url_input = st.text_input("URL (Link)", help="Will auto-fetch title if available")
-        
-        body = st.text_area("Body / Markdown Content")
-        
-        col1, col2 = st.columns(2)
-        with col1:
+        col_title, col_type = st.columns([3, 1])
+        with col_title:
+            title = st.text_input("Title (Required)")
+        with col_type:
             note_type = st.selectbox("Type", options=[e.value for e in NoteType], index=0)
-        with col2:
+            
+        col_tags, col_url = st.columns(2)
+        with col_tags:
             tags_input = st.text_input("Tags (comma separated)")
-
+        with col_url:
+            url_input = st.text_input("URL (Link)", help="Will auto-fetch title if available")
+            
+        body = st.text_area("Body / Markdown Content", placeholder="Describe your idea, hypothesis, or observation...")
+        
         strategy_target = st.selectbox("Link to Strategy", options=list(strat_options.keys()), index=0)
 
         uploaded_file = st.file_uploader("Attach file (optional)", type=["png", "jpg", "pdf"])
 
-        submit = st.form_submit_button("Save Capture")
+        submit = st.form_submit_button("💾 Save Capture", type="primary")
         
         if submit:
             if not title and not url_input:
@@ -85,7 +88,6 @@ def main():
                 elif strat_val is not None:
                     strat_id = strat_val
 
-                # Create note
                 full_body = body
                 if url_input:
                     full_body += f"\n\nLink: {url_input}"
@@ -99,15 +101,32 @@ def main():
                         tags=tags_list
                     )
                     session.commit()
-                    st.success("Captured successfully!")
+                    st.toast("✅ Captured successfully!")
                 except Exception as e:
                     st.error(f"Save failed: {e}")
-                finally:
-                    session.close()
 
-    if not session.is_active: # Ensure we didn't leave it open
-        pass
-    else:
+    st.divider()
+    st.subheader("📥 Recent Captures")
+    
+    try:
+        orphans = note_repo.list_by_strategy(None)
+        if not orphans:
+            st.info("📭 Your inbox is empty. Capture your first idea above!")
+        else:
+            for note in orphans:
+                with st.expander(f"{note.title} — {note.created_at:%Y-%m-%d}"):
+                    st.markdown(note.body)
+                    st.caption(f"Type: {note.note_type.value} | Tags: {', '.join(note.tags or [])}")
+                    
+                    col_del, col_spacer = st.columns([1, 4])
+                    with col_del:
+                        if st.button("🗑️ Delete", key=f"del_inbox_{note.id}"):
+                            note_repo.delete(note.id)
+                            session.commit()
+                            st.rerun()
+    except Exception as e:
+        st.error(f"Error loading inbox: {e}")
+    finally:
         session.close()
 
 if __name__ == "__main__":

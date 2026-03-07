@@ -1,29 +1,29 @@
 import streamlit as st
+st.set_page_config(page_title="AlphaForge — Settings", page_icon="🔥", layout="wide")
+
 import os
 from alphaforge.config import load_config
 from alphaforge.database import get_engine, SessionLocal
 from alphaforge.repository import SystemRepository
-
-# Session management
-@st.cache_resource
-def get_db_session_factory():
-    config = load_config()
-    engine = get_engine(config.database.path)
-    return SessionLocal(engine)
+from components.sidebar import render_sidebar
 
 def get_session():
-    return get_db_session_factory()()
+    config = load_config()
+    engine = get_engine(config.database.path)
+    return SessionLocal(engine)()
 
 def main():
+    render_sidebar()
+    
     st.title("⚙️ Settings")
     config = load_config()
     
     st.header("Application Config")
     st.write(f"**Database Path:** `{config.database.path}`")
-    st.write(f"**Data Directory:** `{config.paths.archive_dir}`") # Using paths mapping from config
-    st.write(f"**Default Universe:** `{config.ingestion.default_universe if hasattr(config, 'ingestion') else 'N/A'}`")
+    st.write(f"**Data Directory:** `{config.paths.archive_dir}`")
+    st.write(f"**Equity Curves Dir:** `{config.paths.equity_curves_dir}`")
 
-    st.markdown("---")
+    st.divider()
     st.header("Database Information")
     session = get_session()
     sys_repo = SystemRepository(session)
@@ -38,13 +38,12 @@ def main():
         st.metric("Total Runs", stats.get("backtest_run", 0))
         st.metric("Total Notes", stats.get("research_note", 0))
 
-    st.markdown("---")
+    st.divider()
     st.header("Backup System")
     target_dir = st.text_input("Backup Location", value=os.path.join(os.getcwd(), "backups"))
     if st.button("Run Backup"):
         session = get_session()
         sys_repo = SystemRepository(session)
-        # Using archive_dir as data_dir source for backup
         data_src = os.path.dirname(config.paths.archive_dir)
         try:
             folder = sys_repo.export_backup(config.database.path, data_src, target_dir)
@@ -54,7 +53,7 @@ def main():
         finally:
             session.close()
 
-    st.markdown("---")
+    st.divider()
     st.header("Database Actions")
     if st.button("Recompute Custom Metrics"):
         with st.spinner("Recomputing metrics for all runs..."):
@@ -70,7 +69,7 @@ def main():
             finally:
                 session.close()
 
-    st.markdown("---")
+    st.divider()
     st.header("About")
     st.write("AlphaForge Version: 0.1.0")
     st.write("Link to [GitHub](https://github.com/mhptrading/alphaforge)")

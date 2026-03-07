@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 def parse_equity_csv(csv_path: Path) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
     df = pd.read_csv(csv_path, encoding="utf-8-sig")
-    df["Date"] = pd.to_datetime(df["Date"], format="%m/%d/%y")
+    df["Date"] = pd.to_datetime(df["Date"], format="mixed", dayfirst=False)
     
     primary_name = df["Strategy"].value_counts().idxmax()
     strategy_df = df[df["Strategy"] == primary_name].copy()

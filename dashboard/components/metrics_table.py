@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime, date
 
 def render_metrics_comparison_table(run_dicts: list[dict]):
     """Renders a side-by-side metrics comparison table."""
@@ -47,4 +48,3 @@ def render_metrics_comparison_table(run_dicts: list[dict]):
     # For now, just show the table
     st.table(df)
 
-from datetime import datetime, date

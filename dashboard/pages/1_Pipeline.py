@@ -1,4 +1,6 @@
 import streamlit as st
+st.set_page_config(page_title="AlphaForge — Pipeline", page_icon="🔥", layout="wide")
+
 import pandas as pd
 from datetime import datetime, date
 from alphaforge.database import get_engine, SessionLocal
@@ -6,6 +8,7 @@ from alphaforge.config import load_config
 from alphaforge.repository import StrategyRepository, NoteRepository
 from alphaforge.models import StrategyStatus, NoteType
 from components.status_badge import render_status_badge
+from components.sidebar import render_sidebar
 
 # Session management
 @st.cache_resource
@@ -31,10 +34,15 @@ def show_create_form():
             else:
                 session = get_session()
                 repo_local = StrategyRepository(session)
-                repo_local.create(name=name, description=description, status=status)
-                session.commit()
-                session.close()
-                st.rerun()
+                existing = repo_local.find_by_name(name)
+                if existing:
+                    st.error(f"A strategy named '{name}' already exists. Choose a different name.")
+                    session.close()
+                else:
+                    repo_local.create(name=name, description=description, status=status)
+                    session.commit()
+                    session.close()
+                    st.rerun()
 
 def render_orphan_note(note):
     with st.container(border=True):
@@ -101,6 +109,7 @@ def render_strategy_card(strat):
                 st.rerun()
 
 def main():
+    render_sidebar()
     st.title("🚀 Research Pipeline")
     
     session = get_session()
@@ -143,7 +152,15 @@ def main():
     cols = st.columns(len(primary_statuses))
     for i, status in enumerate(primary_statuses):
         with cols[i]:
-            st.subheader(status.value.replace("_", " ").title())
+            status_strats = [s for s in strategies if s["status"] == status]
+            status_icons = {
+                StrategyStatus.inbox: "📥",
+                StrategyStatus.testing: "🧪",
+                StrategyStatus.paper_trading: "📝",
+                StrategyStatus.deployed: "🚀",
+            }
+            icon = status_icons.get(status, "📋")
+            st.subheader(f"{icon} {status.value.replace('_', ' ').title()} ({len(status_strats)})")
             
             # Special handling for Inbox orphans
             if status == StrategyStatus.inbox:
@@ -157,22 +174,22 @@ def main():
                             render_orphan_note(note)
                     st.markdown("---")
 
-            status_strats = [s for s in strategies if s["status"] == status]
             if not status_strats:
                 st.caption("Empty")
-            for strat in status_strats:
+            for strat in sorted(status_strats, key=lambda s: s["updated_at"], reverse=True):
                 render_strategy_card(strat)
 
     st.markdown("---")
-    with st.expander("Other Statuses"):
+    archived_count = len([s for s in strategies if s["status"] in other_statuses])
+    with st.expander(f"📦 Archived Strategies — Paused, Rejected, Retired ({archived_count})"):
         cols_other = st.columns(len(other_statuses))
         for i, status in enumerate(other_statuses):
             with cols_other[i]:
-                st.subheader(status.value.replace("_", " ").title())
                 status_strats = [s for s in strategies if s["status"] == status]
+                st.subheader(f"{status.value.replace('_', ' ').title()} ({len(status_strats)})")
                 if not status_strats:
                     st.caption("Empty")
-                for strat in status_strats:
+                for strat in sorted(status_strats, key=lambda s: s["updated_at"], reverse=True):
                     render_strategy_card(strat)
 
 if __name__ == "__main__":

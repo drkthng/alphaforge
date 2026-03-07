@@ -46,6 +46,9 @@ def load_config(path: str = "config.yaml") -> AppConfig:
     with open(path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
         
+    if data is None:
+        return AppConfig()
+        
     return AppConfig(**data)
 
 get_config = load_config
