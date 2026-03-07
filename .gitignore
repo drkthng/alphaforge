@@ -15,11 +15,7 @@ venv/
 env/
 
 # Data (user-specific, not committed)
-data/*.db
-data/archive/
-data/equity_curves/
-data/attachments/
-data/backups/
+data/
 
 # Config (contains user-specific paths)
 config.yaml
