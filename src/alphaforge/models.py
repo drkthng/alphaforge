@@ -28,7 +28,7 @@ class Base(DeclarativeBase):
 
 class StrategyStatus(str, enum.Enum):
     inbox = "inbox"
-    refined = "refined"
+    refining = "refining"
     testing = "testing"
     paper_trading = "paper_trading"
     deployed = "deployed"

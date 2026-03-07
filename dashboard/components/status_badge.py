@@ -2,7 +2,7 @@ def render_status_badge(status: str) -> str:
     """Renders a colored HTML badge for a strategy status."""
     colors = {
         "inbox": "#6c757d",           # Gray
-        "refined": "#007bff",         # Blue
+        "refining": "#007bff",        # Blue
         "testing": "#ffc107",         # Yellow
         "paper_trading": "#17a2b8",  # Cyan
         "deployed": "#28a745",        # Green

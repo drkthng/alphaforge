@@ -68,7 +68,7 @@ def show_promote_dialog(strat_id, strat_name):
         # Update status and description (appending plan)
         strat = repo_local.get_by_id(strat_id)
         if strat:
-            strat.status = StrategyStatus.refined
+            strat.status = StrategyStatus.refining
             if plan:
                 strat.description = (strat.description or "") + f"\n\nRefinement Plan:\n{plan}"
             session.commit()
@@ -99,7 +99,7 @@ def render_strategy_card(strat):
         )
         
         if new_status != strat['status']:
-            if new_status == StrategyStatus.refined and strat['status'] == StrategyStatus.inbox:
+            if new_status == StrategyStatus.refining and strat['status'] == StrategyStatus.inbox:
                 show_promote_dialog(strat['id'], strat['name'])
             else:
                 session = get_session()
@@ -111,7 +111,7 @@ def render_strategy_card(strat):
 
 def main():
     render_sidebar()
-    st.title(":material/account_tree: Research Pipeline")
+    st.title(":material/account_tree: Strategy Pipeline")
     
     session = get_session()
     repo = StrategyRepository(session)
@@ -143,7 +143,7 @@ def main():
         StrategyStatus.deployed
     ]
     other_statuses = [
-        StrategyStatus.refined,
+        StrategyStatus.refining,
         StrategyStatus.paused,
         StrategyStatus.rejected,
         StrategyStatus.retired
