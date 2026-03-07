@@ -27,3 +27,19 @@ def test_load_config_empty_file(tmp_path):
     # Empty YAML returns None from safe_load, should not crash
     config = load_config(str(cfg_file))
     assert isinstance(config, AppConfig)
+
+def test_load_config_invalid_types(tmp_path):
+    from pydantic import ValidationError
+    cfg_file = tmp_path / "invalid_type.yaml"
+    # port should be int
+    cfg_file.write_text("server:\n  port: abc")
+    with pytest.raises(ValidationError):
+        load_config(str(cfg_file))
+
+def test_load_config_deep_invalid_type(tmp_path):
+    from pydantic import ValidationError
+    cfg_file = tmp_path / "invalid_deep.yaml"
+    # stats_csv_columns should be Dict[str, str]
+    cfg_file.write_text("realtest:\n  stats_csv_columns: [1, 2, 3]")
+    with pytest.raises(ValidationError):
+        load_config(str(cfg_file))

@@ -24,6 +24,9 @@ def drawdowns_greater_than_10(equity_df: pd.DataFrame) -> float:
         equity_series = equity_df["Equity"]
     
     # Calculate drawdown
+    equity_series = equity_series.dropna()
+    if equity_series.empty:
+        return 0.0
     rolling_max = equity_series.cummax()
     drawdown = (rolling_max - equity_series) / rolling_max
     
@@ -36,8 +39,12 @@ def ulcer_index(equity_df: pd.DataFrame) -> float:
     if equity_df.empty or "Equity" not in equity_df.columns:
         return 0.0
     
-    rolling_max = equity_df["Equity"].cummax()
-    drawdown = (rolling_max - equity_df["Equity"]) / rolling_max
+    equity_series = equity_df["Equity"].dropna()
+    if equity_series.empty:
+        return 0.0
+        
+    rolling_max = equity_series.cummax()
+    drawdown = (rolling_max - equity_series) / rolling_max
     
     # Ulcer Index = sqrt(mean(drawdown^2))
     return float(np.sqrt((drawdown**2).mean()))

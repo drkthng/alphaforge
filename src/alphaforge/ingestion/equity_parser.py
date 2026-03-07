@@ -10,7 +10,21 @@ def parse_equity_csv(csv_path: Path) -> Tuple[pd.DataFrame, Optional[pd.DataFram
     df = pd.read_csv(csv_path, encoding="utf-8-sig")
     df["Date"] = pd.to_datetime(df["Date"], format="mixed", dayfirst=False)
     
-    primary_name = df["Strategy"].value_counts().idxmax()
+    unique_strategies = df["Strategy"].unique()
+    if len(unique_strategies) == 0:
+        return pd.DataFrame(), None
+        
+    # Assume primary_name is the one with most rows, but if 'Benchmark' is one of them, 
+    # and there are others, the other one is likely the strategy.
+    counts = df["Strategy"].value_counts()
+    primary_name = counts.idxmax()
+    
+    if len(unique_strategies) > 1 and primary_name == "Benchmark":
+        # If Benchmark has more rows, pick the other one as strategy
+        other_strats = [s for s in unique_strategies if s != "Benchmark"]
+        if other_strats:
+            primary_name = other_strats[0]
+
     strategy_df = df[df["Strategy"] == primary_name].copy()
     
     if len(df["Strategy"].unique()) > 1:
@@ -23,20 +37,25 @@ def parse_equity_csv(csv_path: Path) -> Tuple[pd.DataFrame, Optional[pd.DataFram
     int_cols = ["DDBars", "Setups", "Orders", "Entries", "Exits", "Positions"]
 
     for d in [strategy_df, benchmark_df]:
-        if d is None:
+        if d is None or d.empty:
             continue
         
         for c in dollar_cols:
             if c in d.columns:
-                d[c] = d[c].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False).astype(float)
+                # Handle negative values and symbols
+                d[c] = d[c].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False)
+                # Handle (123) format for negative
+                d[c] = d[c].str.replace(r'^\((.*)\)$', r'-\1', regex=True)
+                d[c] = pd.to_numeric(d[c], errors='coerce').astype(float)
         
         for c in pct_cols:
             if c in d.columns:
                 d[c] = d[c].replace("n/a", np.nan)
                 mask = d[c].notna()
-                # Apply stripping and conversion only to non-NaN values
-                # Note: we divide by 100 because these are percentages in the CSV
-                d.loc[mask, c] = d.loc[mask, c].astype(str).str.replace('%', '', regex=False).astype(float) / 100.0
+                if mask.any():
+                    # Strip % and convert to float
+                    vals = d.loc[mask, c].astype(str).str.replace('%', '', regex=False).astype(float) / 100.0
+                    d.loc[mask, c] = vals
                 d[c] = d[c].astype(float)
                 
         for c in int_cols:

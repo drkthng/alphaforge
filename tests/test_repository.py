@@ -247,3 +247,110 @@ def test_universe_list_all(session):
     
     universes = repo.list_all()
     assert len(universes) == 2
+
+def test_create_strategy_duplicate_name(session):
+    repo = StrategyRepository(session)
+    repo.create(name="S1")
+    session.commit()
+    
+    from sqlalchemy.exc import IntegrityError
+    with pytest.raises(IntegrityError):
+        repo.create(name="S1")
+        session.commit()
+
+def test_create_version_auto_increment(session):
+    strat_repo = StrategyRepository(session)
+    strat = strat_repo.create(name="S1")
+    session.commit()
+    
+    repo = VersionRepository(session)
+    repo.create(strategy_id=strat.id, version_number=1)
+    repo.create(strategy_id=strat.id, version_number=2)
+    repo.create(strategy_id=strat.id, version_number=3)
+    session.commit()
+    
+    assert repo.get_next_version_number(strat.id) == 4
+
+def test_strategy_cascade_delete(session):
+    from alphaforge.models import ResearchNote, NoteType
+    from alphaforge.repository import NoteRepository
+    
+    strat_repo = StrategyRepository(session)
+    strat = strat_repo.create(name="S1")
+    
+    v_repo = VersionRepository(session)
+    v = v_repo.create(strategy_id=strat.id, version_number=1)
+    
+    b_repo = BacktestRepository(session)
+    run = b_repo.create(
+        version_id=v.id,
+        run_date=datetime.now(),
+        date_range_start=date(2020, 1, 1),
+        date_range_end=date(2023, 1, 1),
+        parameter_hash="p1",
+        parameters_json={}
+    )
+    
+    m_repo = MetricsRepository(session)
+    m_repo.create(run_id=run.id, sharpe=1.0)
+    
+    n_repo = NoteRepository(session)
+    n_repo.create(strategy_id=strat.id, title="T", body="B", note_type=NoteType.idea)
+    
+    session.commit()
+    
+    # Verify counts
+    assert session.query(Strategy).count() == 1
+    assert session.query(StrategyVersion).count() == 1
+    assert session.query(BacktestRun).count() == 1
+    assert session.query(RunMetric).count() == 1
+    assert session.query(ResearchNote).count() == 1
+    
+    # Delete strategy
+    strat_repo.delete(strat.id)
+    session.commit()
+    
+    # Verify cascade
+    assert session.query(Strategy).count() == 0
+    assert session.query(StrategyVersion).count() == 0
+    assert session.query(BacktestRun).count() == 0
+    assert session.query(RunMetric).count() == 0
+    assert session.query(ResearchNote).count() == 0
+
+def test_repo_long_strings(session):
+    repo = StrategyRepository(session)
+    long_name = "A" * 300
+    strat = repo.create(name=long_name)
+    session.commit()
+    
+    fetched = repo.get_by_id(strat.id)
+    assert fetched.name == long_name
+
+def test_repo_unicode_chars(session):
+    from alphaforge.models import NoteType
+    from alphaforge.repository import NoteRepository
+    
+    repo = StrategyRepository(session)
+    name = "💹 測試"
+    strat = repo.create(name=name)
+    
+    n_repo = NoteRepository(session)
+    body = "<ul><li>🔥</li></ul>"
+    n_repo.create(strategy_id=strat.id, title="U", body=body, note_type=NoteType.idea)
+    
+    session.commit()
+    
+    fetched = repo.find_by_name(name)
+    assert fetched.name == name
+    
+    note = n_repo.list_by_strategy(strat.id)[0]
+    assert note.body == body
+
+def test_edge_cases_empty_relations(session):
+    strat_repo = StrategyRepository(session)
+    strat_repo.create(name="S1")
+    session.commit()
+    
+    b_repo = BacktestRepository(session)
+    leaderboard = b_repo.get_leaderboard(filters={})
+    assert len(leaderboard) == 0 # No versions/runs/metrics yet

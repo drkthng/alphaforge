@@ -17,14 +17,24 @@ def parse_value(raw: Optional[str]) -> Any:
     """
     Strips whitespace and converts strings like '$1,234.56' or '12.5%' to floats.
     Unrecognized formats are returned as stripped strings.
-    Handles 'n/a' as None.
+    Handles 'n/a', 'ERR', '-' as None.
+    Handles negative numbers in parentheses: ($1,234.56).
     """
     if raw is None:
         return None
     s = raw.strip()
-    if not s or s.lower() == 'n/a':
+    if not s or s.lower() in ('n/a', 'err', '-'):
         return None
     
+    # Negative decimals in parentheses: ($1,234.56) or (1,234.56)
+    paren_match = re.match(r'^\((.*)\)$', s)
+    if paren_match:
+        inner = paren_match.group(1).strip()
+        val = parse_value(inner)
+        if isinstance(val, (int, float)):
+            return -abs(val)
+        return s
+
     # Dollars: $1,234.56 or -$120.30
     dollar_match = re.match(r'^(-)?\$([\d,]+\.?\d*)$', s)
     if dollar_match:
@@ -77,8 +87,20 @@ def parse_date_range(dates_str: str) -> Tuple[date, date]:
 
 
 def compute_parameter_hash(params: Dict[str, Any]) -> str:
-    """SHA-256 of sorted JSON of parameter key-value pairs."""
-    json_str = json.dumps(params, sort_keys=True, default=str)
+    """
+    SHA-256 of sorted JSON of normalized parameter key-value pairs.
+    Values are normalized to strings after rounding floats to 6 decimal places.
+    This ensures {"p": 20} and {"p": "20"} produce the same hash.
+    """
+    normalized = {}
+    for k, v in params.items():
+        if isinstance(v, float):
+            v_norm = format(round(v, 6), 'g')
+        else:
+            v_norm = str(v)
+        normalized[str(k)] = v_norm
+        
+    json_str = json.dumps(normalized, sort_keys=True)
     return hashlib.sha256(json_str.encode()).hexdigest()
 
 
@@ -111,9 +133,21 @@ def parse_stats_csv(csv_path: Path, config: AppConfig) -> List[ParsedRow]:
     with open(csv_path, mode='r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            strategy_name = row["Name"]
-            test_number = row["Test"]
-            start_date, end_date = parse_date_range(row["Dates"])
+            # Skip empty rows
+            if not row or not any(str(v).strip() for v in row.values()):
+                continue
+                
+            strategy_name = row.get("Name")
+            if not strategy_name:
+                continue
+                
+            test_number = row.get("Test", "")
+            try:
+                start_date, end_date = parse_date_range(row["Dates"])
+            except (ValueError, KeyError):
+                logger.warning(f"Skipping row with invalid dates: {row.get('Dates')}")
+                continue
+                
             periods = int(row["Periods"]) if row.get("Periods") else None
             
             metrics = {}
@@ -128,6 +162,7 @@ def parse_stats_csv(csv_path: Path, config: AppConfig) -> List[ParsedRow]:
             parameters = {}
             # We need to be careful with header matching here
             for header, val in row.items():
+                if header is None: continue
                 h_stripped = header.strip()
                 if h_stripped not in fixed_headers:
                     parameters[h_stripped] = parse_value(val)
@@ -145,4 +180,7 @@ def parse_stats_csv(csv_path: Path, config: AppConfig) -> List[ParsedRow]:
                 parameter_hash=param_hash
             ))
             
+    if not results:
+        logger.warning(f"No valid data rows found in {csv_path}")
+        
     return results
