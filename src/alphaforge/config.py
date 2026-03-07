@@ -41,14 +41,22 @@ class AppConfig(BaseModel):
 def load_config(path: str = "config.yaml") -> AppConfig:
     """Loads and validates configuration from a YAML file."""
     if not os.path.exists(path):
-        return AppConfig()
-    
-    with open(path, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-        
-    if data is None:
-        return AppConfig()
-        
-    return AppConfig(**data)
+        config = AppConfig()
+    else:
+        with open(path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            
+        if data is None:
+            config = AppConfig()
+        else:
+            config = AppConfig(**data)
+            
+    if os.environ.get("ALPHAFORGE_ENV") == "sandbox":
+        if config.database.path.endswith(".db"):
+            config.database.path = config.database.path[:-3] + "_sandbox.db"
+        else:
+            config.database.path += "_sandbox.db"
+            
+    return config
 
 get_config = load_config

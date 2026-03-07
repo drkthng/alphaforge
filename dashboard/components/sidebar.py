@@ -50,7 +50,7 @@ def render_sidebar():
     
     st.sidebar.divider()
     
-    st.sidebar.markdown("### 🔍 Search")
+    st.sidebar.markdown("### :material/search: Search")
     search_query = st.sidebar.text_input("Search strategies & notes...", key="global_search_sidebar")
     
     if search_query:
@@ -75,6 +75,24 @@ def render_sidebar():
         finally:
             session.close()
             
+    st.sidebar.divider()
+    
+    st.sidebar.markdown("### :material/science: Environment")
+    current_env = os.environ.get("ALPHAFORGE_ENV", "production")
+    
+    is_sandbox = st.sidebar.toggle("Sandbox Mode", value=(current_env == "sandbox"), key="sandbox_toggle")
+    
+    if is_sandbox and current_env != "sandbox":
+        os.environ["ALPHAFORGE_ENV"] = "sandbox"
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
+    elif not is_sandbox and current_env == "sandbox":
+        os.environ["ALPHAFORGE_ENV"] = "production"
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun()
+        
     st.sidebar.divider()
     
     if st.sidebar.button("🔄 Refresh Data"):

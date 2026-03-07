@@ -11,11 +11,16 @@ st.set_page_config(
     layout="wide",
 )
 
+from components.banner import render_sandbox_banner
+render_sandbox_banner()
+
 # Initialize Session and Repositories
 @st.cache_resource
 def get_db_session_factory():
+    from alphaforge.database import init_db
     config = load_config()
     engine = get_engine(config.database.path)
+    init_db(engine)
     return SessionLocal(engine)
 
 def get_session():

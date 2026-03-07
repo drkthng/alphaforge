@@ -1,6 +1,9 @@
 import streamlit as st
 st.set_page_config(page_title="AlphaForge — Leaderboard", page_icon="🔥", layout="wide")
 
+from components.banner import render_sandbox_banner
+render_sandbox_banner()
+
 import pandas as pd
 from datetime import datetime, date
 import io

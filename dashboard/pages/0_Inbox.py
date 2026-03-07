@@ -1,6 +1,9 @@
 import streamlit as st
 st.set_page_config(page_title="AlphaForge — Inbox", page_icon="🔥", layout="wide")
 
+from components.banner import render_sandbox_banner
+render_sandbox_banner()
+
 import requests
 from bs4 import BeautifulSoup
 from alphaforge.database import get_engine, SessionLocal
