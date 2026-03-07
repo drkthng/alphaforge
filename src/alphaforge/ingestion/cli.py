@@ -7,11 +7,26 @@ from rich.console import Console
 from rich.table import Table
 
 from alphaforge.config import load_config
-from alphaforge.database import SessionLocal
+from alphaforge.database import get_session
 from alphaforge.ingestion.ingest import ingest_stats
 from alphaforge.repository import StrategyRepository, BacktestRepository
 
 app = typer.Typer(name="alphaforge", help="AlphaForge — RealTest strategy manager")
+
+@app.command("init")
+def init_cmd():
+    """Initialize the database schema."""
+    from alphaforge.database import get_engine, init_db
+    init_db(get_engine())
+    console.print("[green]Database initialized.[/green]")
+
+@app.command("launch")
+def launch_cmd():
+    """Launch the AlphaForge Streamlit Dashboard."""
+    import subprocess
+    import sys
+    subprocess.run([sys.executable, "-m", "streamlit", "run", "dashboard/app.py"])
+
 ingest_app = typer.Typer(help="Ingestion commands")
 list_app = typer.Typer(help="List commands")
 app.add_typer(ingest_app, name="ingest")
@@ -19,10 +34,10 @@ app.add_typer(list_app, name="list")
 
 console = Console()
 
-@ingest_app.command("stats")
-def ingest_stats_cmd(
+@ingest_app.command("run")
+def ingest_run_cmd(
     csv_path: Path = typer.Argument(..., help="Path to the RealTest stats CSV file"),
-    equity: Optional[Path] = typer.Option(None, "--equity", help="Path to the equity curve CSV file"),
+    equity: Optional[Path] = typer.Option(None, "--equity-csv", help="Path to the equity curve CSV file"),
     rts: Optional[Path] = typer.Option(None, "--rts", help="Path to the strategy .rts file"),
     reports: Optional[Path] = typer.Option(None, "--reports", help="Directory containing HTML reports"),
     strategy: Optional[str] = typer.Option(None, "--strategy", help="Override strategy name"),
@@ -31,7 +46,7 @@ def ingest_stats_cmd(
 ):
     """Ingest backtest results from a RealTest stats CSV."""
     config = load_config()
-    session = SessionLocal()
+    session = get_session()
     
     try:
         runs = ingest_stats(
@@ -87,12 +102,12 @@ def scan_dir(
         console.print(f"Processing [cyan]{csv_file.name}[/cyan]...")
         # Since we're in a simple CLI, we'll just call the other command logic or ingest_stats
         # For simplicity in this script, we'll re-open sessions
-        ingest_stats_cmd(csv_path=csv_file, strategy=strategy)
+        ingest_run_cmd(csv_path=csv_file, strategy=strategy)
 
 @list_app.command("strategies")
 def list_strategies():
     """List all strategies in the database."""
-    session = SessionLocal()
+    session = get_session()
     repo = StrategyRepository(session)
     strategies = repo.list_all()
     
@@ -115,7 +130,7 @@ def list_strategies():
 @list_app.command("runs")
 def list_runs(strategy: Optional[str] = typer.Option(None, "--strategy", help="Filter by strategy name")):
     """List backtest runs."""
-    session = SessionLocal()
+    session = get_session()
     repo = BacktestRepository(session)
     
     if strategy:
@@ -159,7 +174,7 @@ def list_runs(strategy: Optional[str] = typer.Option(None, "--strategy", help="F
 @app.command("show")
 def show_run(run_id: int):
     """Show detailed information for a specific run."""
-    session = SessionLocal()
+    session = get_session()
     repo = BacktestRepository(session)
     run = repo.get_by_id(run_id)
     

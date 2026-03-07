@@ -171,7 +171,7 @@ class BacktestRun(Base):
     # Relationships
     version: Mapped["StrategyVersion"] = relationship(back_populates="runs")
     universe: Mapped[Optional["Universe"]] = relationship(back_populates="runs")
-    metrics: Mapped["RunMetrics"] = relationship(
+    metrics: Mapped["RunMetric"] = relationship(
         back_populates="run", uselist=False, cascade="all, delete-orphan"
     )
     artifacts: Mapped[List["RunArtifact"]] = relationship(
@@ -183,9 +183,9 @@ class BacktestRun(Base):
         return f"<BacktestRun(id={self.id}, version_id={self.version_id})>"
 
 
-class RunMetrics(Base):
+class RunMetric(Base):
     """Summary statistics for a backtest run."""
-    __tablename__ = "run_metrics"
+    __tablename__ = "run_metric"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     run_id: Mapped[int] = mapped_column(ForeignKey("backtest_run.id"), unique=True, nullable=False)

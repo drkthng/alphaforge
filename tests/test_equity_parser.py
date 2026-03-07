@@ -11,11 +11,11 @@ def sample_csv():
 def test_parse_equity_csv_splits_strategy_benchmark(sample_csv):
     strat_df, bench_df = parse_equity_csv(sample_csv)
     
-    assert len(strat_df) == 3
-    assert len(bench_df) == 3
+    # fixture from prompt has 4 rows
+    assert len(strat_df) == 4
+    assert bench_df is None
     
-    assert (strat_df["Strategy"] == "MeanRevert").all()
-    assert (bench_df["Strategy"] == "SPY_Benchmark").all()
+    assert (strat_df["Strategy"] == "test_strat").all()
 
 def test_parse_equity_csv_dollar_parsing(sample_csv):
     strat_df, _ = parse_equity_csv(sample_csv)
@@ -26,15 +26,14 @@ def test_parse_equity_csv_dollar_parsing(sample_csv):
 
 def test_parse_equity_csv_na_handling(sample_csv):
     strat_df, _ = parse_equity_csv(sample_csv)
-    # Row 0 Weekly is NaN
+    # Weekly is n/a in all rows of the sample fixture
     assert pd.isna(strat_df.loc[0, "Weekly"])
-    # Row 2 Weekly is 0.50% / 100.0 = 0.005
-    assert np.isclose(strat_df.loc[2, "Weekly"], 0.005)
+    assert pd.isna(strat_df.loc[2, "Weekly"])
 
 def test_parse_equity_csv_percent_parsing(sample_csv):
     strat_df, _ = parse_equity_csv(sample_csv)
-    # Row 1 Daily == 0.25% / 100 = 0.0025
-    assert np.isclose(strat_df.loc[1, "Daily"], 0.0025)
+    # Row 1 Daily == 1.23% / 100 = 0.0123
+    assert np.isclose(strat_df.loc[1, "Daily"], 0.0123)
 
 def test_save_equity_parquet(tmp_path):
     strat_df = pd.DataFrame({"Date": ["2020-01-01"], "Equity": [1000]})

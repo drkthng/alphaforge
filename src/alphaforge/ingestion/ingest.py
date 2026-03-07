@@ -10,7 +10,7 @@ from alphaforge.ingestion.csv_parser import parse_stats_csv, ParsedRow
 from alphaforge.ingestion.equity_parser import parse_equity_csv, save_equity_parquet
 from alphaforge.ingestion.rts_archiver import get_or_create_version
 from alphaforge.ingestion.report_linker import link_reports
-from alphaforge.models import BacktestRun, RunMetrics, StrategyStatus, ArtifactType
+from alphaforge.models import BacktestRun, RunMetric, StrategyStatus, ArtifactType
 from alphaforge.repository import (
     StrategyRepository, BacktestRepository, MetricsRepository, UniverseRepository,
 )
@@ -108,7 +108,7 @@ def ingest_stats(
             duplicate_note=current_note
         )
 
-        # 8. Create RunMetrics
+        # 8. Create RunMetric
         metrics_data = row.metrics.copy()
         # Force total_trades to int if it's there
         if "total_trades" in metrics_data and metrics_data["total_trades"] is not None:

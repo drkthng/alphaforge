@@ -6,7 +6,7 @@ from datetime import datetime, date
 
 from alphaforge.models import (
     Base, Strategy, StrategyVersion, BacktestRun, 
-    RunMetrics, StrategyStatus, ArtifactType, Universe
+    RunMetric, StrategyStatus, ArtifactType, Universe
 )
 from alphaforge.config import load_config
 
@@ -74,7 +74,7 @@ def test_full_hierarchy_and_metrics(session):
     session.commit()
     
     # 5. Add Metrics
-    metrics = RunMetrics(
+    metrics = RunMetric(
         run_id=run.id,
         net_profit=1500.50,
         sharpe=1.25,

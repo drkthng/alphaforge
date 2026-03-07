@@ -3,7 +3,7 @@ from datetime import datetime, date
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from alphaforge.models import (
-    Base, Strategy, StrategyVersion, BacktestRun, RunMetrics,
+    Base, Strategy, StrategyVersion, BacktestRun, RunMetric,
     Universe, StrategyStatus, NoteType, AttachmentType,
     ResearchNote, Attachment
 )

@@ -18,8 +18,8 @@ def parse_equity_csv(csv_path: Path) -> Tuple[pd.DataFrame, Optional[pd.DataFram
     else:
         benchmark_df = None
 
-    dollar_cols = ["Equity", "TWEQ", "M2M", "MAE", "MFE", "Invested"]
-    pct_cols = ["Drawdown", "Daily", "Weekly", "Monthly", "Quarterly", "Yearly", "Exposure"]
+    dollar_cols = ["Equity", "TWEQ", "Invested"]
+    pct_cols = ["Drawdown", "Daily", "Weekly", "Monthly", "Quarterly", "Yearly", "M2M", "MAE", "MFE", "Exposure"]
     int_cols = ["DDBars", "Setups", "Orders", "Entries", "Exits", "Positions"]
 
     for d in [strategy_df, benchmark_df]:
@@ -28,18 +28,21 @@ def parse_equity_csv(csv_path: Path) -> Tuple[pd.DataFrame, Optional[pd.DataFram
         
         for c in dollar_cols:
             if c in d.columns:
-                d[c] = d[c].astype(str).str.replace('$', '').str.replace(',', '').astype(float)
+                d[c] = d[c].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False).astype(float)
         
         for c in pct_cols:
             if c in d.columns:
                 d[c] = d[c].replace("n/a", np.nan)
                 mask = d[c].notna()
-                d.loc[mask, c] = d.loc[mask, c].astype(str).str.replace('%', '').astype(float) / 100.0
+                # Apply stripping and conversion only to non-NaN values
+                # Note: we divide by 100 because these are percentages in the CSV
+                d.loc[mask, c] = d.loc[mask, c].astype(str).str.replace('%', '', regex=False).astype(float) / 100.0
                 d[c] = d[c].astype(float)
                 
         for c in int_cols:
             if c in d.columns:
-                d[c] = d[c].astype(int)
+                # Handle cases where int cols might have commas or decimals
+                d[c] = pd.to_numeric(d[c].astype(str).str.replace(',', '', regex=False), errors='coerce').fillna(0).astype(int)
         
         d.reset_index(drop=True, inplace=True)
         

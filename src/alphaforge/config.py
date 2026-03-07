@@ -47,3 +47,5 @@ def load_config(path: str = "config.yaml") -> AppConfig:
         data = yaml.safe_load(f)
         
     return AppConfig(**data)
+
+get_config = load_config

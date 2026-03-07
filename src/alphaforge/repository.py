@@ -6,7 +6,7 @@ from sqlalchemy import select, func, desc, text
 from sqlalchemy.orm import Session
 
 from alphaforge.models import (
-    Strategy, StrategyVersion, BacktestRun, RunMetrics,
+    Strategy, StrategyVersion, BacktestRun, RunMetric,
     RunArtifact, Universe, slugify, StrategyStatus,
     ResearchNote, NoteType, Attachment, AttachmentType
 )
@@ -59,12 +59,12 @@ class StrategyRepository:
                 Strategy.status,
                 Strategy.updated_at,
                 func.count(BacktestRun.id).label("run_count"),
-                func.max(RunMetrics.cagr).label("best_cagr"),
-                func.min(RunMetrics.max_drawdown).label("worst_maxdd")
+                func.max(RunMetric.cagr).label("best_cagr"),
+                func.min(RunMetric.max_drawdown).label("worst_maxdd")
             )
             .outerjoin(StrategyVersion, Strategy.id == StrategyVersion.strategy_id)
             .outerjoin(BacktestRun, StrategyVersion.id == BacktestRun.version_id)
-            .outerjoin(RunMetrics, BacktestRun.id == RunMetrics.run_id)
+            .outerjoin(RunMetric, BacktestRun.id == RunMetric.run_id)
             .group_by(Strategy.id)
         )
         if status:
@@ -184,23 +184,23 @@ class BacktestRepository:
                 BacktestRun.date_range_start,
                 BacktestRun.date_range_end,
                 Universe.name.label("universe"),
-                RunMetrics.cagr,
-                RunMetrics.sharpe,
-                RunMetrics.max_drawdown,
-                RunMetrics.net_profit,
-                RunMetrics.rate_of_return,
-                RunMetrics.mar,
-                RunMetrics.profit_factor,
-                RunMetrics.total_trades,
-                RunMetrics.pct_wins,
-                RunMetrics.expectancy,
-                RunMetrics.avg_exposure,
+                RunMetric.cagr,
+                RunMetric.sharpe,
+                RunMetric.max_drawdown,
+                RunMetric.net_profit,
+                RunMetric.rate_of_return,
+                RunMetric.mar,
+                RunMetric.profit_factor,
+                RunMetric.total_trades,
+                RunMetric.pct_wins,
+                RunMetric.expectancy,
+                RunMetric.avg_exposure,
                 BacktestRun.is_in_sample,
-                RunMetrics.custom_metrics_json
+                RunMetric.custom_metrics_json
             )
             .join(StrategyVersion, BacktestRun.version_id == StrategyVersion.id)
             .join(Strategy, StrategyVersion.strategy_id == Strategy.id)
-            .join(RunMetrics, BacktestRun.id == RunMetrics.run_id)
+            .join(RunMetric, BacktestRun.id == RunMetric.run_id)
             .outerjoin(Universe, BacktestRun.universe_id == Universe.id)
         )
 
@@ -218,14 +218,14 @@ class BacktestRepository:
             stmt = stmt.where(BacktestRun.is_in_sample == filters["is_in_sample"])
 
         # Sorting
-        order_col = getattr(RunMetrics, sort_by, None)
+        order_col = getattr(RunMetric, sort_by, None)
         if order_col is None:
             if sort_by == "run_date":
                 order_col = BacktestRun.run_date
             elif sort_by == "strategy_name":
                 order_col = Strategy.name
             else:
-                order_col = RunMetrics.cagr
+                order_col = RunMetric.cagr
 
         if sort_order == "desc":
             stmt = stmt.order_by(desc(order_col))
@@ -242,7 +242,7 @@ class BacktestRepository:
             select(func.count(BacktestRun.id))
             .join(StrategyVersion, BacktestRun.version_id == StrategyVersion.id)
             .join(Strategy, StrategyVersion.strategy_id == Strategy.id)
-            .join(RunMetrics, BacktestRun.id == RunMetrics.run_id)
+            .join(RunMetric, BacktestRun.id == RunMetric.run_id)
             .outerjoin(Universe, BacktestRun.universe_id == Universe.id)
         )
 
@@ -273,27 +273,27 @@ class BacktestRepository:
                 BacktestRun.equity_curve_path,
                 BacktestRun.trade_log_path,
                 Universe.name.label("universe"),
-                RunMetrics.net_profit,
-                RunMetrics.compound_return,
-                RunMetrics.rate_of_return,
-                RunMetrics.cagr,
-                RunMetrics.max_drawdown,
-                RunMetrics.mar,
-                RunMetrics.total_trades,
-                RunMetrics.pct_wins,
-                RunMetrics.expectancy,
-                RunMetrics.avg_win,
-                RunMetrics.avg_loss,
-                RunMetrics.win_length,
-                RunMetrics.loss_length,
-                RunMetrics.profit_factor,
-                RunMetrics.sharpe,
-                RunMetrics.avg_exposure,
-                RunMetrics.max_exposure,
-                RunMetrics.custom_metrics_json
+                RunMetric.net_profit,
+                RunMetric.compound_return,
+                RunMetric.rate_of_return,
+                RunMetric.cagr,
+                RunMetric.max_drawdown,
+                RunMetric.mar,
+                RunMetric.total_trades,
+                RunMetric.pct_wins,
+                RunMetric.expectancy,
+                RunMetric.avg_win,
+                RunMetric.avg_loss,
+                RunMetric.win_length,
+                RunMetric.loss_length,
+                RunMetric.profit_factor,
+                RunMetric.sharpe,
+                RunMetric.avg_exposure,
+                RunMetric.max_exposure,
+                RunMetric.custom_metrics_json
             )
             .join(StrategyVersion, BacktestRun.version_id == StrategyVersion.id)
-            .join(RunMetrics, BacktestRun.id == RunMetrics.run_id)
+            .join(RunMetric, BacktestRun.id == RunMetric.run_id)
             .outerjoin(Universe, BacktestRun.universe_id == Universe.id)
             .where(StrategyVersion.strategy_id == strategy_id)
         )
@@ -330,7 +330,7 @@ class BacktestRepository:
                             continue
                     
                     if not run.metrics:
-                        run.metrics = RunMetrics(run_id=run.id)
+                        run.metrics = RunMetric(run_id=run.id)
                     
                     run.metrics.custom_metrics_json = custom_results
                     count += 1
@@ -345,19 +345,19 @@ class MetricsRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def create(self, **kwargs) -> RunMetrics:
-        db_obj = RunMetrics(**kwargs)
+    def create(self, **kwargs) -> RunMetric:
+        db_obj = RunMetric(**kwargs)
         self.session.add(db_obj)
         self.session.flush()
         return db_obj
 
-    def get_by_id(self, metrics_id: int) -> Optional[RunMetrics]:
-        return self.session.get(RunMetrics, metrics_id)
+    def get_by_id(self, metrics_id: int) -> Optional[RunMetric]:
+        return self.session.get(RunMetric, metrics_id)
 
-    def get_by_run_id(self, run_id: int) -> Optional[RunMetrics]:
-        return self.session.scalars(select(RunMetrics).where(RunMetrics.run_id == run_id)).first()
+    def get_by_run_id(self, run_id: int) -> Optional[RunMetric]:
+        return self.session.scalars(select(RunMetric).where(RunMetric.run_id == run_id)).first()
 
-    def update(self, run_id: int, **kwargs) -> Optional[RunMetrics]:
+    def update(self, run_id: int, **kwargs) -> Optional[RunMetric]:
         db_obj = self.get_by_run_id(run_id)
         if db_obj:
             for key, value in kwargs.items():
@@ -369,7 +369,7 @@ class MetricsRepository:
     def get_available_custom_metrics(self) -> List[str]:
         # This is SQLite specific but we can fetch some samples or use json_each
         # For simplicity, let's fetch the keys from the most recent 100 runs
-        stmt = select(RunMetrics.custom_metrics_json).where(RunMetrics.custom_metrics_json.is_not(None)).limit(100)
+        stmt = select(RunMetric.custom_metrics_json).where(RunMetric.custom_metrics_json.is_not(None)).limit(100)
         results = self.session.scalars(stmt).all()
         keys = set()
         for r in results:

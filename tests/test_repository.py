@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime, date
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from alphaforge.models import Base, Strategy, StrategyVersion, BacktestRun, RunMetrics, Universe, StrategyStatus
+from alphaforge.models import Base, Strategy, StrategyVersion, BacktestRun, RunMetric, Universe, StrategyStatus
 from alphaforge.repository import (
     StrategyRepository, VersionRepository, BacktestRepository,
     MetricsRepository, UniverseRepository, ArtifactRepository,

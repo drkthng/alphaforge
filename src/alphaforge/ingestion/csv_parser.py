@@ -17,11 +17,12 @@ def parse_value(raw: Optional[str]) -> Any:
     """
     Strips whitespace and converts strings like '$1,234.56' or '12.5%' to floats.
     Unrecognized formats are returned as stripped strings.
+    Handles 'n/a' as None.
     """
     if raw is None:
         return None
     s = raw.strip()
-    if not s:
+    if not s or s.lower() == 'n/a':
         return None
     
     # Dollars: $1,234.56 or -$120.30
@@ -32,16 +33,18 @@ def parse_value(raw: Optional[str]) -> Any:
         return -float(val) if neg else float(val)
 
     # Percentages: 12.5% or -1.2%
+    # Note: Spec says strip % and return float (e.g. 18.5% -> 18.5)
     percent_match = re.match(r'^(-)?([\d.]+)%$', s)
     if percent_match:
         neg, val = percent_match.groups()
-        return (-float(val) / 100.0) if neg else (float(val) / 100.0)
+        return -float(val) if neg else float(val)
 
-    # Plain numbers
+    # Plain numbers (handle commas in non-dollar numbers too just in case)
     try:
-        if '.' in s:
-            return float(s)
-        return int(s)
+        s_clean = s.replace(',', '')
+        if '.' in s_clean:
+            return float(s_clean)
+        return int(s_clean)
     except ValueError:
         pass
 
@@ -49,14 +52,28 @@ def parse_value(raw: Optional[str]) -> Any:
 
 
 def parse_date_range(dates_str: str) -> Tuple[date, date]:
-    """Parses 'M/D/YY - M/D/YY' style strings."""
-    parts = dates_str.split(' - ')
+    """Parses 'M/D/YY - M/D/YY' or 'M/D/YY-M/D/YY' style strings."""
+    if ' - ' in dates_str:
+        parts = dates_str.split(' - ')
+    elif '-' in dates_str:
+        parts = dates_str.split('-')
+    else:
+        raise ValueError(f"Invalid date range format: {dates_str}")
+    
     if len(parts) != 2:
         raise ValueError(f"Invalid date range format: {dates_str}")
     
-    start = datetime.strptime(parts[0].strip(), "%m/%d/%y").date()
-    end = datetime.strptime(parts[1].strip(), "%m/%d/%y").date()
-    return start, end
+    # helper for multiple date formats
+    def _parse_d(s: str) -> date:
+        s = s.strip()
+        for fmt in ("%m/%d/%y", "%m/%d/%Y"):
+            try:
+                return datetime.strptime(s, fmt).date()
+            except ValueError:
+                continue
+        raise ValueError(f"Could not parse date: {s}")
+
+    return _parse_d(parts[0]), _parse_d(parts[1])
 
 
 def compute_parameter_hash(params: Dict[str, Any]) -> str:
