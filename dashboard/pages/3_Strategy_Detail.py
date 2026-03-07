@@ -1,7 +1,7 @@
 import streamlit as st
 st.set_page_config(page_title="AlphaForge — Strategy Detail", page_icon="🔥", layout="wide")
 
-import pd
+import pandas as pd
 import difflib
 import os
 import webbrowser

@@ -12,6 +12,7 @@ dependencies = [
     "pyarrow",
     "pandas",
     "streamlit",
+    "matplotlib",
     "typer>=0.9",
     "rich",
     "click",
