@@ -25,7 +25,7 @@ def show_create_form():
     with st.form("new_strat_form"):
         name = st.text_input("Strategy Name", placeholder="e.g. Mean Reversion SPY")
         description = st.text_area("Description")
-        status = st.selectbox("Initial Status", options=list(StrategyStatus), index=0)
+        status = st.selectbox("Initial Status", options=list(StrategyStatus), index=0, format_func=lambda x: x.value.replace("_", " ").title())
         
         submit = st.form_submit_button("Create")
         if submit:
@@ -94,7 +94,8 @@ def render_strategy_card(strat):
             options=[s for s in StrategyStatus],
             index=list(StrategyStatus).index(strat['status']),
             key=f"move_{strat['id']}",
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            format_func=lambda x: x.value.replace("_", " ").title()
         )
         
         if new_status != strat['status']:

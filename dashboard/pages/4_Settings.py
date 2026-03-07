@@ -15,7 +15,7 @@ def get_session():
 def main():
     render_sidebar()
     
-    st.title("⚙️ Settings")
+    st.title(":material/settings: System Settings")
     config = load_config()
     
     st.header("Application Config")

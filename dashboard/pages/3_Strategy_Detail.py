@@ -95,7 +95,8 @@ def main():
             "Change Status",
             options=list(StrategyStatus),
             index=list(StrategyStatus).index(strategy.status),
-            key="strat_status_select"
+            key="strat_status_select",
+            format_func=lambda x: x.value.replace("_", " ").title()
         )
         if new_status != strategy.status:
             strat_repo.update_status(strategy.id, new_status)
@@ -115,7 +116,7 @@ def main():
                 with st.form("add_note_form", clear_on_submit=True):
                     note_title = st.text_input("Title")
                     note_body = st.text_area("Body (Markdown supported)")
-                    note_type = st.selectbox("Type", options=list(NoteType))
+                    note_type = st.selectbox("Type", options=list(NoteType), format_func=lambda x: x.value.title())
                     if st.form_submit_button("Save Note"):
                         if note_title and note_body:
                             note_repo.create(strategy.id, note_title, note_body, note_type)
@@ -144,7 +145,7 @@ def main():
             with st.popover("➕ Add Attachment", use_container_width=True):
                 with st.form("add_attach_form", clear_on_submit=True):
                     att_title = st.text_input("Title")
-                    att_type = st.selectbox("Type", options=list(AttachmentType))
+                    att_type = st.selectbox("Type", options=list(AttachmentType), format_func=lambda x: x.value.title())
                     att_url = st.text_input("URL (for link type)")
                     att_file = st.file_uploader("Upload File")
                     

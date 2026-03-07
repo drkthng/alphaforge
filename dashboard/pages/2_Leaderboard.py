@@ -57,7 +57,8 @@ def main():
             selected_statuses = st.multiselect(
                 "Statuses",
                 options=all_statuses,
-                default=default_statuses
+                default=default_statuses,
+                format_func=lambda x: x.value.replace("_", " ").title()
             )
             
         with f_col3:

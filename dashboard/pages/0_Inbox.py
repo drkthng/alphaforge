@@ -50,7 +50,7 @@ def main():
         with col_title:
             title = st.text_input("Title (Required)")
         with col_type:
-            note_type = st.selectbox("Type", options=[e.value for e in NoteType], index=0)
+            note_type = st.selectbox("Type", options=list(NoteType), index=0, format_func=lambda x: x.value.title())
             
         col_tags, col_url = st.columns(2)
         with col_tags:
