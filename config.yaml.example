@@ -1,0 +1,22 @@
+# AlphaForge Configuration Template
+# Copy this file to 'config.yaml' and customize your paths
+
+database:
+  path: "./data/alphaforge.db"
+
+paths:
+  archive_dir: "./data/archive"
+  equity_curves_dir: "./data/equity_curves"
+  attachments_dir: "./data/attachments"
+  realtest_output_dir: null  # Set to your RealTest output folder, e.g., "C:/RealTest/Output"
+
+realtest:
+  stats_csv_columns: {}  # Map RealTest CSV column headers to AlphaForge metrics here
+
+server:
+  port: 8501
+  host: "localhost"
+
+backup:
+  enabled: false
+  target_dir: null  # Set to your backup folder, e.g., "D:/Backups/AlphaForge"

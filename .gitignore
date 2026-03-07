@@ -1,35 +1,50 @@
-# OS
-.DS_Store
-Thumbs.db
+# Python
+pycache/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
 
-# Editors
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Data (user-specific, not committed)
+data/*.db
+data/archive/
+data/equity_curves/
+data/attachments/
+data/backups/
+
+# Config (contains user-specific paths)
+config.yaml
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# Dependencies
-node_modules/
-__pycache__/
-*.pyc
-.venv/
-venv/
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# Build output
+# Streamlit
+.streamlit/secrets.toml
+
+# PyInstaller
+*.spec
 dist/
 build/
-*.egg-info/
 
-# Environment
-.env
-.env.local
-
-# Databases
-*.db
-data/*.db
-
-# Temporary scripts
-cleanup_db.py
-
-# Logs
-*.log
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/

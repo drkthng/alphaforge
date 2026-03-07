@@ -1,232 +1,156 @@
-<div align="center">
+# 🔥 AlphaForge
 
-# ⚒️ AlphaForge
+**Your personal quant research command center.**
 
-**Systematic Trading Strategy Research & Management Platform**
+AlphaForge is a desktop application for systematic traders and quant researchers who use [RealTest](https://realtest.trading) for backtesting. It replaces scattered spreadsheets, forgotten CSV exports, and half-remembered parameter tweaks with a structured, searchable, visual system — built to run locally on Windows with a single click.
 
-*Where trading strategies are forged, tested, and refined.*
+> Stop losing track of what you tested, when you tested it, and why it mattered.
 
-[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows-0078D4.svg)]()
-[![RealTest](https://img.shields.io/badge/built%20for-RealTest-orange.svg)](https://mhptrading.com/)
+## ✨ Features
 
-[Features](#features) · [Quick Start](#quick-start) · [Architecture](#architecture) · [Roadmap](#roadmap)
+### 📊 Strategy Pipeline
+Kanban board for tracking strategy statuses from inbox to deployment. Move strategies through refined, testing, paper trading, and deployed stages.
 
-</div>
+### ⚡ Automated Ingestion
+Parses RealTest CSV stats and equity curves. Archives and deduplicates `.rts` strategy files via SHA-256 hashing. Detects duplicate runs via parameter hashing to prevent redundant data.
 
----
-
-## The Problem
-
-If you're a systematic trader using [RealTest](https://mhptrading.com/), you know the pain:
-
-- 📂 Dozens of CSV files scattered across folders with cryptic names
-- 🤔 Forgetting which parameter combinations you already tested
-- 📝 Research notes in Obsidian, screenshots on your desktop, bookmarks in your browser
-- 📊 No easy way to compare backtest runs side by side
-- 🔄 Re-testing ideas you already rejected because you lost track
-
-**AlphaForge consolidates everything into one searchable, visual system.** It ingests your RealTest outputs, versions your `.rts` strategy files, and gives you a dashboard to track every idea from napkin sketch to live deployment.
-
----
-
-## Features
-
-### 📊 Performance Leaderboard
-One table to rule them all. Every backtest run, sortable and filterable by any metric — CAGR, Sharpe, Max Drawdown, Profit Factor, custom metrics you define. Color-coded to instantly spot winners. Export to CSV.
-
-### 🔄 Strategy Pipeline
-Kanban-style workflow tracking:
-**Inbox → Refined → Testing → Paper Trading → Deployed → Paused → Rejected → Retired**
+### 🏆 Global Leaderboard
+Sortable metrics table comparing all ingested runs across universes. Quick-filter by strategy or status to find your best performers.
 
 ### 📈 Interactive Equity Curves
-Plotly-based charts with drawdown subplots, log-scale toggle, benchmark overlay (SPY), and multi-run comparison on a single chart.
+Plotly-powered interactive charts with multi-run overlays and In-Sample / Out-of-Sample split lines. Visualize drawdowns and performance metrics dynamically.
 
-### 🔬 Optimization Analysis
-Parameter heatmaps showing metric sensitivity across your sweep. Instantly see whether your strategy is robust or sitting on a fragile peak.
+### 📥 Research Inbox
+Capture research notes with URL title fetching and link them to strategies. Never lose an idea or an observation from your research sessions.
 
-### 🗂️ Strategy Versioning
-Every `.rts` file automatically archived with SHA-256 hashing. Syntax-highlighted code viewer with diff comparison between versions.
+### 🔬 Robust Analytics
+Parameter heatmaps for multidimensional analysis, and an extensible custom metrics engine to track what matters to your specific edge.
 
-### 📝 Built-in Research Notes
-Markdown note-taking linked directly to strategies. Attach screenshots, PDFs, URLs. No more context-switching to Obsidian.
+## 🖥️ Screenshots
 
-### 🎯 Multi-Universe Tracking
-Test the same strategy on S&P 500, Russell 2000, All US Stocks — track results per universe as a first-class dimension.
+> Screenshots coming soon. See [Screenshot Guide](docs/SCREENSHOT_GUIDE.md) for instructions on capturing them.
 
-### 🧪 In-Sample / Out-of-Sample
-Mark IS vs. OOS periods, overlay both on the same equity chart, and filter the leaderboard to show only out-of-sample results.
+![Pipeline View](docs/screenshots/pipeline.png)
+![Leaderboard](docs/screenshots/leaderboard.png)
+![Strategy Detail](docs/screenshots/detail.png)
+![Equity Curves](docs/screenshots/equity_curves.png)
 
-### 🖥️ One-Click Desktop App
-Launches from your Windows Start Menu. System tray icon for quick access. No terminal, no commands — just double-click.
+## 🚀 Quick Start
 
----
+### Prerequisites
+- Python 3.11+
+- Windows 10/11 (for desktop app; the dashboard runs on any OS)
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
 
-## Screenshots
-
-> 🚧 *Coming soon — the project is under active development.*
-
----
-
-## Quick Start
-
-### Option A: Pre-built Executable (Recommended)
-
-1. Download `AlphaForge-Setup.exe` from [Releases](../../releases)
-2. Run the installer or extract the portable `.zip`
-3. Double-click **AlphaForge** — pin it to your Start Menu
-4. Point it at your RealTest output folder in Settings
-
-### Option B: Run from Source
+### Install
 
 ```bash
-# Prerequisites: Python 3.11+, uv (https://docs.astral.sh/uv/)
-
-git clone https://github.com/YOUR_USERNAME/alphaforge.git
+git clone https://github.com/drkthng/alphaforge.git
 cd alphaforge
-
-# Install dependencies
-uv sync
-
-# Initialize the database
-uv run python -m alphaforge init
-
-# Launch the dashboard
-uv run python -m alphaforge launch
-
-# Ingest a RealTest output
-uv run python -m alphaforge ingest ./path/to/realtest/output/
+uv sync        # or: pip install -e "."
 ```
 
----
-
-## Architecture
-
+### Initialize
+```bash
+alphaforge init
 ```
-┌──────────────────────────────────────────────────────┐
-│                 AlphaForge Desktop                    │
-│          (System Tray Launcher → Browser)             │
-├──────────────┬───────────────────────────────────────┤
-│   Dashboard  │  Web UI with interactive charts,       │
-│   (Frontend) │  tables, forms, and pipeline views     │
-├──────────────┼───────────────────────────────────────┤
-│   Service    │  Repository layer — all DB access       │
-│   Layer      │  goes through here (swap UI anytime)   │
-├──────────────┼───────────────────────────────────────┤
-│   Storage    │  SQLite (metadata) + Parquet (series)   │
-├──────────────┼───────────────────────────────────────┤
-│   Ingestion  │  CSV Parser · .rts Archiver · Linker   │
-│   Pipeline   │  CLI + optional folder watcher          │
-└──────────────┴───────────────────────────────────────┘
+Creates the database, data directories, and default configuration.
+
+### Configure
+Copy the example config and set your RealTest output path:
+```bash
+cp config.yaml.example config.yaml
+```
+Edit `config.yaml`:
+```yaml
+paths:
+  realtest_output_dir: "C:/RealTest/Output"  # ← Your path here
 ```
 
-### Data Model
+### Ingest Backtest Data
+```bash
+# Single run with stats CSV, strategy code, and equity curve
+alphaforge ingest run ./path/to/stats.csv \
+  --rts ./path/to/strategy.rts \
+  --equity-csv ./path/to/equity.csv \
+  --strategy "My Strategy Name"
 
-```
-Strategy                          — The overarching trading concept
-├── StrategyVersion               — A specific .rts code snapshot (SHA-256 tracked)
-│   ├── BacktestRun               — One execution with specific parameters + universe
-│   │   ├── RunMetrics            — Core stats + extensible custom metrics (JSON)
-│   │   ├── EquityCurve           — Daily/weekly/monthly time-series (Parquet)
-│   │   ├── TradeLog              — Individual trade records
-│   │   └── RunArtifact           — File references to HTML reports, PNGs
-│   └── ParameterSet              — Parameter definitions for this code version
-├── ResearchNote                  — Markdown notes, hypotheses, observations
-├── Attachment                    — Screenshots, PDFs, bookmarks
-└── Universe                      — Stock universe used (S&P 500, Russell 2000, etc.)
+# Bulk-scan a directory for all CSVs
+alphaforge ingest scan ./path/to/outputs/ --strategy "My Strategy"
 ```
 
-### Key Design Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| **Local-first** | Your data, your machine. No cloud dependency. |
-| **SQLite + Parquet** | Metadata in SQLite for fast queries; time-series in Parquet for 10x compression and fast loading. |
-| **Decoupled frontend** | All DB access through a repository layer. Swap the UI framework without touching business logic. |
-| **Extensible metrics** | Core metrics as columns + JSON field for custom metrics you add over time. |
-| **SHA-256 versioning** | Detects duplicate .rts files without relying on filenames. |
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Language | Python 3.11+ |
-| Package Manager | [uv](https://docs.astral.sh/uv/) |
-| Database ORM | SQLAlchemy 2.0 + Alembic |
-| Metadata Storage | SQLite |
-| Time-Series Storage | Apache Parquet (via PyArrow) |
-| Dashboard | Streamlit (or NiceGUI — TBD) |
-| Charts | Plotly |
-| Validation | Pydantic |
-| CLI | Typer |
-| Desktop Packaging | PyInstaller |
-
----
-
-## Project Structure
-
-```
-alphaforge/
-├── pyproject.toml
-├── config.yaml                   # Paths, metric mappings, RealTest config
-├── alembic/                      # Database migrations
-├── src/alphaforge/
-│   ├── __init__.py
-│   ├── config.py                 # Config loader + Pydantic validation
-│   ├── models.py                 # SQLAlchemy ORM models
-│   ├── database.py               # Engine + session factory
-│   ├── repository.py             # All DB read/write operations
-│   ├── ingestion/                # CSV parsing, .rts archiving, artifact linking
-│   ├── analysis/                 # Equity curves, heatmaps, custom metrics
-│   ├── dashboard/                # Web UI pages and components
-│   └── launcher.pyw              # Windows launcher (system tray + browser)
-├── data/
-│   ├── alphaforge.db             # SQLite database
-│   ├── archive/                  # Versioned .rts files
-│   ├── equity_curves/            # Parquet files
-│   └── attachments/              # Uploaded files
-├── assets/
-│   └── icon.ico                  # App icon
-├── build/                        # PyInstaller spec + build scripts
-├── tests/
-└── README.md
+### Launch Dashboard
+```bash
+alphaforge launch
 ```
 
----
+### Build Desktop App (Windows)
+```bash
+alphaforge build
+# Output: dist/AlphaForge/AlphaForge.exe
+```
 
-## Roadmap
+## 📁 Data Storage
+All data stays on your machine:
 
-- [ ] **Phase 0** — Project scaffolding, database schema, configuration
-- [ ] **Phase 1** — Ingestion pipeline (CSV parser, .rts archiver, CLI)
-- [ ] **Phase 2** — Core dashboard (pipeline view, leaderboard, compare mode)
-- [ ] **Phase 3** — Strategy detail view (equity curves, code viewer, trade log)
-- [ ] **Phase 4** — Research capture (notes, attachments, promote-to-strategy)
-- [ ] **Phase 5** — Advanced analytics (heatmaps, IS/OOS, walk-forward, regime tagging)
-- [ ] **Phase 6** — Deployment journal & live performance tracking
-- [ ] **Future** — Remote access, backup automation, AI-assisted analysis
+```text
+data/
+├── alphaforge.db        # SQLite database (metadata)
+├── archive/             # Versioned .rts strategy files  
+│   └── {strategy_slug}/
+├── equity_curves/       # Parquet files (one per backtest run)
+│   └── run_{id}.parquet
+└── attachments/         # Uploaded images, PDFs
+    └── {strategy_id}/
+```
 
----
+## ⌨️ CLI Reference
+| Command | Description |
+| --- | --- |
+| `alphaforge init` | Initialize database and directories |
+| `alphaforge launch` | Start the dashboard |
+| `alphaforge ingest run <csv>` | Ingest a single backtest run |
+| `alphaforge ingest scan <dir>` | Scan and ingest all CSVs in a directory |
+| `alphaforge ingest refresh` | Re-parse metrics for a run |
+| `alphaforge build` | Build Windows desktop executable |
 
-## RealTest Integration
+### Ingest Options
+```text
+--rts PATH          Path to .rts strategy file
+--equity-csv PATH   Path to equity curve CSV
+--reports-dir PATH  Path to HTML report directory
+--strategy NAME     Strategy name (auto-detected from CSV if omitted)
+--universe NAME     Universe name (e.g., "SP500")
+--notes TEXT        Notes about this run
+--non-interactive   Skip duplicate prompts
+```
 
-AlphaForge is purpose-built for [RealTest](https://mhptrading.com/) users. It understands RealTest's output formats:
+## 📊 RealTest Integration
+AlphaForge expects two types of CSV output from RealTest:
 
-- **Stats CSV** — `Test, Name, Dates, Periods, NetProfit, ROR, MaxDD, MAR, Trades, PctWins, Expectancy, ProfitFactor, Sharpe, ...`
-- **Equity CSV** — `Date, Strategy, Equity, TWEQ, Drawdown, DDBars, Daily, Weekly, Monthly, ...`
-- **HTML Reports** — `index.html` with associated chart images
-- **Optimization Sweeps** — Multi-row CSVs with parameter columns appended
+### Stats/Optimization CSV
+```text
+Test,Name,Dates,Periods,NetProfit,comp,ROR,MaxDD,MAR,Trades,PctWins,Expectancy,AvgWin,AvgLoss,WinLen,LossLen,ProfitFactor,Sharpe,AvgExp,MaxExp,[parameters...]
+```
+Columns after `MaxExp` are treated as strategy parameters.
 
-Configure your column mappings once in `config.yaml`; AlphaForge handles the rest.
+### Equity Curve CSV
+```text
+Date,Strategy,Equity,TWEQ,Drawdown,DDBars,Daily,Weekly,Monthly,Quarterly,Yearly,M2M,MAE,MFE,Setups,Orders,Entries,Exits,Positions,Invested,Exposure
+```
 
----
+## 🔧 Configuration
+See `config.yaml.example` for all options.
 
-## Contributing
+## 🗺️ Roadmap
+- [ ] Folder watcher for automatic ingestion
+- [ ] Remote access with authentication
+- [ ] Automated cloud backup
+- [ ] Walk-forward analysis UI enhancements
+- [ ] Live deployment journal with broker integration
 
-AlphaForge is a personal project built for my own systematic trading workflow, but contributions are welcome. Please open an issue to discuss before submitting a PR.
+## 🤝 Contributing
+Issues, feature requests, and pull requests are welcome.
 
-## License
-
-[MIT License](LICENSE) — use it, fork it, forge your own alpha.
+## 📄 License
+MIT
