@@ -33,17 +33,17 @@ def main():
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown("### 📥 Inbox")
+        st.markdown("### :material/inbox: Research Inbox")
         st.markdown("Capture ideas, hypotheses, and observations.")
-        st.page_link("pages/0_Inbox.py", label="Open Inbox →")
+        st.page_link("pages/0_Inbox.py", label="Open Inbox", icon=":material/arrow_forward:")
     with col2:
-        st.markdown("### 🚀 Pipeline")
+        st.markdown("### :material/account_tree: Strategy Pipeline")
         st.markdown("Track strategies from idea to deployment.")
-        st.page_link("pages/1_Pipeline.py", label="Open Pipeline →")
+        st.page_link("pages/1_Pipeline.py", label="Open Pipeline", icon=":material/arrow_forward:")
     with col3:
-        st.markdown("### 🏆 Leaderboard")
+        st.markdown("### :material/leaderboard: Global Leaderboard")
         st.markdown("Compare backtest runs across all strategies.")
-        st.page_link("pages/2_Leaderboard.py", label="Open Leaderboard →")
+        st.page_link("pages/2_Leaderboard.py", label="Open Leaderboard", icon=":material/arrow_forward:")
     
     st.divider()
     st.info("👈 Use the sidebar to navigate between views.")

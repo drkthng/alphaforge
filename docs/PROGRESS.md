@@ -3,13 +3,15 @@
 ## In Progress
 
 ## Completed
+- [x] `2026-03-07` Phase 7 — UI Polish & Professionalization
+  - [x] Consolidated navigation (disabled default Streamlit panel)
+  - [x] Replaced infantile icons with professional Material Icons
+  - [x] Cleaned up sidebar layout and unified header styling
 - [x] `2026-03-06` Phase 6 — Windows Desktop Executable
   - [x] Unified launcher (`launcher.pyw`) with system tray icon
   - [x] PyInstaller build configuration for Streamlit + Plotly
   - [x] Automated build script (`build.py`)
   - [x] Phase 5 (Advanced Analytics) integration verified in build
-
-## Completed
 - [x] `2026-03-06` Phase 5 — Advanced Analytics & Robustness
   - [x] Custom metrics engine with `@metric` decorator
   - [x] Background recomputation of metrics from Parquet curves

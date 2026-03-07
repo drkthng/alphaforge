@@ -26,26 +26,27 @@ def _load_sidebar_stats():
         return 0, 0, 0
 
 def render_sidebar():
-    st.sidebar.markdown("# 🔥 AlphaForge")
+    st.sidebar.markdown("### 🔥 AlphaForge")
+    st.sidebar.caption("v0.1.0 Research Engine")
     st.sidebar.divider()
     
     total, runs, testing = _load_sidebar_stats()
     
-    c1, c2 = st.sidebar.columns(2)
-    with c1:
-        st.metric("Strategies", total)
-    with c2:
-        st.metric("Runs", runs)
-    st.sidebar.metric("In Testing", testing)
+    # Premium metric layout
+    with st.sidebar.container():
+        c1, c2 = st.columns(2)
+        c1.metric("Strategies", total)
+        c2.metric("Backtests", runs)
     
     st.sidebar.divider()
     
-    st.sidebar.page_link("app.py", label="Home", icon="🏠")
-    st.sidebar.page_link("pages/0_Inbox.py", label="Inbox", icon="📥")
-    st.sidebar.page_link("pages/1_Pipeline.py", label="Pipeline", icon="🚀")
-    st.sidebar.page_link("pages/2_Leaderboard.py", label="Leaderboard", icon="🏆")
-    st.sidebar.page_link("pages/3_Strategy_Detail.py", label="Strategy Detail", icon="🔍")
-    st.sidebar.page_link("pages/4_Settings.py", label="Settings", icon="⚙️")
+    # Professional Navigation with Material Icons
+    st.sidebar.page_link("app.py", label="Home", icon=":material/home:")
+    st.sidebar.page_link("pages/0_Inbox.py", label="Research Inbox", icon=":material/inbox:")
+    st.sidebar.page_link("pages/1_Pipeline.py", label="Strategy Pipeline", icon=":material/account_tree:")
+    st.sidebar.page_link("pages/2_Leaderboard.py", label="Global Leaderboard", icon=":material/leaderboard:")
+    st.sidebar.page_link("pages/3_Strategy_Detail.py", label="Analysis Detail", icon=":material/monitoring:")
+    st.sidebar.page_link("pages/4_Settings.py", label="System Settings", icon=":material/settings:")
     
     st.sidebar.divider()
     

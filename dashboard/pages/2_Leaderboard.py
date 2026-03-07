@@ -23,7 +23,7 @@ def get_session():
 
 def main():
     render_sidebar()
-    st.title("🏆 Strategy Leaderboard")
+    st.title(":material/leaderboard: Strategy Leaderboard")
     
     session = get_session()
     strat_repo = StrategyRepository(session)
@@ -147,12 +147,13 @@ def main():
     # Table Header & Export
     h_col1, h_col2 = st.columns([5, 1])
     with h_col1:
-        st.markdown("### All Runs")
+        st.markdown("### :material/list: All Runs")
         st.caption("🟢 Top quartile  🔴 Bottom quartile")
     with h_col2:
         csv = df_display.drop(columns=["Compare", "Detail"]).to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="📥 Export CSV",
+            label="Export CSV",
+            icon=":material/download:",
             data=csv,
             file_name='alphaforge_leaderboard.csv',
             mime='text/csv',

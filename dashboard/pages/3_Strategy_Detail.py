@@ -109,7 +109,7 @@ def main():
 
         # --- SIDEBAR (Left) ---
         with sidebar_col:
-            st.subheader("📝 Research Notes")
+            st.subheader(":material/note_alt: Research Notes")
             
             with st.popover("➕ Add Note", use_container_width=True):
                 with st.form("add_note_form", clear_on_submit=True):
@@ -139,7 +139,7 @@ def main():
                             st.rerun()
 
             st.divider()
-            st.subheader("📎 Attachments")
+            st.subheader(":material/attachment: Attachments")
             
             with st.popover("➕ Add Attachment", use_container_width=True):
                 with st.form("add_attach_form", clear_on_submit=True):
@@ -186,7 +186,7 @@ def main():
                         st.rerun()
 
             st.divider()
-            st.subheader("💻 .rts Code")
+            st.subheader(":material/code: .rts Code")
             if versions:
                 selected_v = st.selectbox(
                     "Version", 
@@ -227,16 +227,16 @@ def main():
         # --- MAIN CONTENT (Right) ---
         with main_col:
             tab1, tab2, tab3, tab4, tab5 = st.tabs([
-                "📈 Equity Curves", 
-                "📊 Run Metrics", 
-                "🔥 Parameter Heatmap", 
-                "📋 Trade Log", 
-                "📄 RealTest Report"
+                ":material/monitoring: Equity Curves", 
+                ":material/analytics: Run Metrics", 
+                ":material/grid_on: Parameter Heatmap", 
+                ":material/list: Trade Log", 
+                ":material/description: RealTest Report"
             ])
             
             # Tab 1: Equity Curves
             with tab1:
-                st.subheader(f"Equity Curves — {strategy.name}")
+                st.subheader(":material/show_chart: Equity Curves")
                 if runs:
                     if not any(r.get("equity_curve_path") for r in runs):
                         st.info("📈 No equity curve data. Ingest a backtest with `--equity-csv` to generate curves.")

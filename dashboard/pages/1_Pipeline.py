@@ -110,7 +110,7 @@ def render_strategy_card(strat):
 
 def main():
     render_sidebar()
-    st.title("🚀 Research Pipeline")
+    st.title(":material/account_tree: Research Pipeline")
     
     session = get_session()
     repo = StrategyRepository(session)
@@ -118,7 +118,7 @@ def main():
     # Header Actions
     col1, col2 = st.columns([6, 1])
     with col2:
-        if st.button("➕ New"):
+        if st.button("New Strategy", icon=":material/add:"):
             show_create_form()
 
     # Fetch data
@@ -131,7 +131,7 @@ def main():
         session.close()
 
     if not strategies:
-        st.info("No strategies found. Click 'New' to get started.")
+        st.info("No strategies found. Click 'New Strategy' to get started.")
         return
 
     # Kanban Layout
@@ -148,19 +148,20 @@ def main():
         StrategyStatus.retired
     ]
 
-    st.markdown("### Primary Workflow")
+    st.markdown("### :material/dynamic_form: Primary Workflow")
     cols = st.columns(len(primary_statuses))
     for i, status in enumerate(primary_statuses):
         with cols[i]:
             status_strats = [s for s in strategies if s["status"] == status]
             status_icons = {
-                StrategyStatus.inbox: "📥",
-                StrategyStatus.testing: "🧪",
-                StrategyStatus.paper_trading: "📝",
-                StrategyStatus.deployed: "🚀",
+                StrategyStatus.inbox: ":material/inbox:",
+                StrategyStatus.testing: ":material/biotech:",
+                StrategyStatus.paper_trading: ":material/description:",
+                StrategyStatus.deployed: ":material/rocket_launch:",
             }
-            icon = status_icons.get(status, "📋")
-            st.subheader(f"{icon} {status.value.replace('_', ' ').title()} ({len(status_strats)})")
+            icon = status_icons.get(status, ":material/list_alt:")
+            st.subheader(f"{icon} {status.value.replace('_', ' ').title()}")
+            st.caption(f"{len(status_strats)} strategies")
             
             # Special handling for Inbox orphans
             if status == StrategyStatus.inbox:

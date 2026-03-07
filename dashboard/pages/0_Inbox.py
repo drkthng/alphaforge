@@ -28,7 +28,7 @@ def fetch_url_title(url: str) -> str:
 def main():
     render_sidebar()
     
-    st.title("📥 Inbox")
+    st.title(":material/inbox: Research Inbox")
     st.markdown("Capture ideas, hypotheses, and observations.")
     
     session = get_session()
@@ -64,7 +64,7 @@ def main():
 
         uploaded_file = st.file_uploader("Attach file (optional)", type=["png", "jpg", "pdf"])
 
-        submit = st.form_submit_button("💾 Save Capture", type="primary")
+        submit = st.form_submit_button("Save Capture", icon=":material/save:", type="primary")
         
         if submit:
             if not title and not url_input:
@@ -101,12 +101,12 @@ def main():
                         tags=tags_list
                     )
                     session.commit()
-                    st.toast("✅ Captured successfully!")
+                    st.toast("Captured successfully!")
                 except Exception as e:
                     st.error(f"Save failed: {e}")
 
     st.divider()
-    st.subheader("📥 Recent Captures")
+    st.subheader(":material/history: Recent Captures")
     
     try:
         orphans = note_repo.list_by_strategy(None)
