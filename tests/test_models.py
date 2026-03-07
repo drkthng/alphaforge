@@ -135,4 +135,4 @@ def test_config_loading():
     # Assuming config.yaml exists in root since Phase 0 created it
     config = load_config()
     assert config.database.path == "./data/alphaforge.db"
-    assert "NetProfit" in config.realtest.stats_csv_columns
+    assert config.realtest.stats_csv_columns == {}

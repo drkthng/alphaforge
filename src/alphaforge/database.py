@@ -1,3 +1,4 @@
+import os
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker, Session
 
@@ -6,6 +7,11 @@ from alphaforge.models import Base
 
 def get_engine(db_path: str = "data/alphaforge.db", echo: bool = False) -> Engine:
     """Creates a SQLAlchemy engine for the specified SQLite database path."""
+    if db_path != ":memory:":
+        db_dir = os.path.dirname(os.path.abspath(db_path))
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+
     connection_url = f"sqlite:///{db_path}"
     return create_engine(
         connection_url,

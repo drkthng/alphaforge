@@ -7,7 +7,7 @@ from pathlib import Path
 from alphaforge.config import load_config
 from alphaforge.database import get_engine, SessionLocal
 from alphaforge.models import (
-    Base, Strategy, StrategyVersion, BacktestRun, RunMetrics, 
+    Base, Strategy, StrategyVersion, BacktestRun, RunMetric, 
     Universe, StrategyStatus, NoteType, AttachmentType, ArtifactType
 )
 from alphaforge.repository import (
