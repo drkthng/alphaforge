@@ -180,7 +180,12 @@ def main():
                     elif att.attachment_type == AttachmentType.image:
                         st.markdown(f"🖼️ **{att.title}**")
                         if att.file_path and os.path.exists(att.file_path):
-                            st.image(att.file_path)
+                            try:
+                                from PIL import Image
+                                img = Image.open(att.file_path)
+                                st.image(img)
+                            except Exception as e:
+                                st.error(f"Failed to load image: {e}")
                     else:
                         st.markdown(f"📄 {att.title}")
                 with del_col:

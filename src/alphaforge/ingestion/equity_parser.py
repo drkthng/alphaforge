@@ -70,11 +70,11 @@ def parse_equity_csv(csv_path: Path) -> Tuple[pd.DataFrame, Optional[pd.DataFram
 
 def save_equity_parquet(strategy_df: pd.DataFrame, benchmark_df: Optional[pd.DataFrame], run_id: int, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
-    strat_path = output_dir / f"{run_id}_strategy.parquet"
+    strat_path = output_dir / f"run_{run_id}_equity.parquet"
     strategy_df.to_parquet(strat_path, index=False)
     
     if benchmark_df is not None:
-        bench_path = output_dir / f"{run_id}_benchmark.parquet"
+        bench_path = output_dir / f"run_{run_id}_benchmark.parquet"
         benchmark_df.to_parquet(bench_path, index=False)
         
     return strat_path

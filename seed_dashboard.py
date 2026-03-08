@@ -174,87 +174,85 @@ End Procedure
                     custom_metrics_json={"alpha_v1": random.random(), "beta_v1": random.random()}
                 )
                 
-                # Equity Curve and Trade Log (only for first 3 runs per version)
-                if run_idx < 3:
-                    # Equity Curve
-                    eq_path = equity_dir / f"run_{run.id}_equity.parquet"
-                    dates = pd.bdate_range(start=start_date, end=end_date)
-                    n_days = len(dates)
+                # Equity Curve
+                eq_path = equity_dir / f"run_{run.id}_equity.parquet"
+                dates = pd.bdate_range(start=start_date, end=end_date)
+                n_days = len(dates)
+                
+                # Random walk for equity
+                returns = np.random.normal(0.0003 + (cagr/25200), 0.012, n_days)
+                equity = 100000 * np.exp(np.cumsum(returns))
+                
+                # Compute drawdown
+                cum_max = np.maximum.accumulate(equity)
+                drawdown = (equity / cum_max - 1) * 100
+                
+                df_eq = pd.DataFrame({
+                    "Date": dates,
+                    "Equity": equity,
+                    "Drawdown": drawdown
+                })
+                df_eq.to_parquet(eq_path)
+                run.equity_curve_path = str(eq_path)
+                
+                # Trade Log
+                trade_path = trade_dir / f"run_{run.id}_trades.parquet"
+                n_trades = random.randint(30, 100)
+                
+                trade_dates = sorted([random.choice(dates) for _ in range(n_trades)])
+                symbols = ["SPY", "QQQ", "AAPL", "MSFT", "AMZN", "GOOG", "META", "NVDA"]
+                
+                trades = []
+                for t_date in trade_dates:
+                    exit_date = t_date + timedelta(days=random.randint(1, 30))
+                    entry_price = random.uniform(50, 500)
+                    pnl_pct = random.uniform(-0.1, 0.15)
+                    exit_price = entry_price * (1 + pnl_pct)
                     
-                    # Random walk for equity
-                    returns = np.random.normal(0.0003 + (cagr/25200), 0.012, n_days)
-                    equity = 100000 * np.exp(np.cumsum(returns))
-                    
-                    # Compute drawdown
-                    cum_max = np.maximum.accumulate(equity)
-                    drawdown = (equity / cum_max - 1) * 100
-                    
-                    df_eq = pd.DataFrame({
-                        "Date": dates,
-                        "Equity": equity,
-                        "Drawdown": drawdown
+                    trades.append({
+                        "EntryDate": t_date,
+                        "ExitDate": exit_date,
+                        "Symbol": random.choice(symbols),
+                        "Direction": random.choice(["Long", "Short"]),
+                        "EntryPrice": entry_price,
+                        "ExitPrice": exit_price,
+                        "PnL": (exit_price - entry_price) * 100,
+                        "HoldingDays": (exit_date - t_date).days
                     })
-                    df_eq.to_parquet(eq_path)
-                    run.equity_curve_path = str(eq_path)
+                
+                df_trades = pd.DataFrame(trades)
+                df_trades.to_parquet(trade_path)
+                run.trade_log_path = str(trade_path)
                     
-                    # Trade Log
-                    trade_path = trade_dir / f"run_{run.id}_trades.parquet"
-                    n_trades = random.randint(30, 100)
-                    
-                    trade_dates = sorted([random.choice(dates) for _ in range(n_trades)])
-                    symbols = ["SPY", "QQQ", "AAPL", "MSFT", "AMZN", "GOOG", "META", "NVDA"]
-                    
-                    trades = []
-                    for t_date in trade_dates:
-                        exit_date = t_date + timedelta(days=random.randint(1, 30))
-                        entry_price = random.uniform(50, 500)
-                        pnl_pct = random.uniform(-0.1, 0.15)
-                        exit_price = entry_price * (1 + pnl_pct)
-                        
-                        trades.append({
-                            "EntryDate": t_date,
-                            "ExitDate": exit_date,
-                            "Symbol": random.choice(symbols),
-                            "Direction": random.choice(["Long", "Short"]),
-                            "EntryPrice": entry_price,
-                            "ExitPrice": exit_price,
-                            "PnL": (exit_price - entry_price) * 100,
-                            "HoldingDays": (exit_date - t_date).days
-                        })
-                    
-                    df_trades = pd.DataFrame(trades)
-                    df_trades.to_parquet(trade_path)
-                    run.trade_log_path = str(trade_path)
-                    
-                    # HTML Report Artifact (only for the first run)
-                    if run_idx == 0:
-                        rep_path = report_dir / f"run_{run.id}_report.html"
-                        html_content = f"""
-                        <html>
-                        <head><style>body {{ font-family: sans-serif; padding: 20px; }} table {{ border-collapse: collapse; width: 100%; }} th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }} tr:nth-child(even) {{ background-color: #f2f2f2; }}</style></head>
-                        <body>
-                            <h1>Strategy Report: {strat.name}</h1>
-                            <p><strong>Run ID:</strong> {run.id}</p>
-                            <p><strong>CAGR:</strong> {cagr:.2f}%</p>
-                            <p><strong>Sharpe:</strong> {sharpe:.2f}</p>
-                            <hr>
-                            <h2>Key Statistics</h2>
-                            <table>
-                                <tr><th>Metric</th><th>Value</th></tr>
-                                <tr><td>Net Profit</td><td>${cagr*10000:,.0f}</td></tr>
-                                <tr><td>Max Drawdown</td><td>{max_dd:.2f}%</td></tr>
-                                <tr><td>Total Trades</td><td>{n_trades}</td></tr>
-                            </table>
-                        </body>
-                        </html>
-                        """
-                        rep_path.write_text(html_content)
-                        artifact_repo.create(
-                            run_id=run.id,
-                            artifact_type=ArtifactType.html_report,
-                            file_path=str(rep_path),
-                            description="Main Backtest Report"
-                        )
+                # HTML Report Artifact (only for the first run)
+                if run_idx == 0:
+                    rep_path = report_dir / f"run_{run.id}_report.html"
+                    html_content = f"""
+                    <html>
+                    <head><style>body {{ font-family: sans-serif; padding: 20px; }} table {{ border-collapse: collapse; width: 100%; }} th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }} tr:nth-child(even) {{ background-color: #f2f2f2; }}</style></head>
+                    <body>
+                        <h1>Strategy Report: {strat.name}</h1>
+                        <p><strong>Run ID:</strong> {run.id}</p>
+                        <p><strong>CAGR:</strong> {cagr:.2f}%</p>
+                        <p><strong>Sharpe:</strong> {sharpe:.2f}</p>
+                        <hr>
+                        <h2>Key Statistics</h2>
+                        <table>
+                            <tr><th>Metric</th><th>Value</th></tr>
+                            <tr><td>Net Profit</td><td>${cagr*10000:,.0f}</td></tr>
+                            <tr><td>Max Drawdown</td><td>{max_dd:.2f}%</td></tr>
+                            <tr><td>Total Trades</td><td>{n_trades}</td></tr>
+                        </table>
+                    </body>
+                    </html>
+                    """
+                    rep_path.write_text(html_content)
+                    artifact_repo.create(
+                        run_id=run.id,
+                        artifact_type=ArtifactType.html_report,
+                        file_path=str(rep_path),
+                        description="Main Backtest Report"
+                    )
     
     session.commit()
     print(f"Seed complete. Created {len(strategies)} strategies, versions, and runs with synthetic data.")

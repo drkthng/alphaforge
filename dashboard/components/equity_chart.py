@@ -97,7 +97,9 @@ def render_equity_chart(run_selections: list[dict], normalize: bool = False, log
 
         # Benchmark Overlay (optional)
         # Assuming benchmark is adjacent to equity file: run_1_benchmark.parquet
-        benchmark_path = str(Path(path).with_name(f"{Path(path).stem}_benchmark.parquet"))
+        stem = Path(path).stem
+        benchmark_name = stem.replace("_equity", "_benchmark") + ".parquet"
+        benchmark_path = str(Path(path).with_name(benchmark_name))
         if os.path.exists(benchmark_path):
             bm_mtime = os.path.getmtime(benchmark_path)
             df_bm = _load_equity_data(benchmark_path, bm_mtime)

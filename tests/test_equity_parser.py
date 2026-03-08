@@ -43,8 +43,8 @@ def test_save_equity_parquet(tmp_path):
     strat_path = save_equity_parquet(strat_df, bench_df, run_id=123, output_dir=out_dir)
     
     assert strat_path.exists()
-    assert strat_path.name == "123_strategy.parquet"
-    bench_path = out_dir / "123_benchmark.parquet"
+    assert strat_path.name == "run_123_equity.parquet"
+    bench_path = out_dir / "run_123_benchmark.parquet"
     assert bench_path.exists()
     
     # Verify contents
