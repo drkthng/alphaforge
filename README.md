@@ -40,6 +40,8 @@ Ensure your data is secure with easily accessible configuration and database bac
 
 ## Quick Start
 
+> New to AlphaForge? Read the [RealTest Workflow Guide](docs/REALTEST_WORKFLOW.md) for a step-by-step walkthrough from running a backtest to viewing the results in the dashboard.
+
 ### Prerequisites
 - Python 3.11+
 - Windows 10/11 (for desktop app; the dashboard runs on any OS)
