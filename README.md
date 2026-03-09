@@ -1,4 +1,4 @@
-# 🔥 AlphaForge
+# AlphaForge
 
 **Your personal quant research command center.**
 
@@ -6,27 +6,30 @@ AlphaForge is a desktop application for systematic traders and quant researchers
 
 > Stop losing track of what you tested, when you tested it, and why it mattered.
 
-## ✨ Features
+## Features
 
-### 📊 Strategy Pipeline
+### Strategy Pipeline
 Kanban board for tracking strategy statuses from inbox to deployment. Move strategies through refined, testing, paper trading, and deployed stages.
 
-### ⚡ Automated Ingestion
+### Automated Ingestion
 Parses RealTest CSV stats and equity curves. Archives and deduplicates `.rts` strategy files via SHA-256 hashing. Detects duplicate runs via parameter hashing to prevent redundant data.
 
-### 🏆 Global Leaderboard
+### Global Leaderboard
 Sortable metrics table comparing all ingested runs across universes. Quick-filter by strategy or status to find your best performers.
 
-### 📈 Interactive Equity Curves
-Plotly-powered interactive charts with multi-run overlays and In-Sample / Out-of-Sample split lines. Visualize drawdowns and performance metrics dynamically.
+### Interactive Equity Curves & Advanced Analytics
+Plotly-powered interactive charts with multi-run overlays and In-Sample / Out-of-Sample split lines. Visualize drawdowns and performance metrics dynamically. A custom metrics engine and multidimensional parameter heatmaps allow for robust analysis of what matters to your specific edge.
 
-### 📥 Research Inbox
-Capture research notes with URL title fetching and link them to strategies. Never lose an idea or an observation from your research sessions.
+### Research Inbox & Quick Capture
+Capture research notes with URL title fetching and link them to strategies. Never lose an idea or an observation from your research sessions. 
 
-### 🔬 Robust Analytics
-Parameter heatmaps for multidimensional analysis, and an extensible custom metrics engine to track what matters to your specific edge.
+### Global Search
+FTS5-indexed global search accessible directly from the sidebar helps you instantly locate strategies, notes, and metrics.
 
-## 🖥️ Screenshots
+### Settings & Backup System
+Ensure your data is secure with easily accessible configuration and database backup features cleanly integrated into the application settings.
+
+## Screenshots
 
 > Screenshots coming soon. See [Screenshot Guide](docs/SCREENSHOT_GUIDE.md) for instructions on capturing them.
 
@@ -35,7 +38,7 @@ Parameter heatmaps for multidimensional analysis, and an extensible custom metri
 ![Strategy Detail](docs/screenshots/detail.png)
 ![Equity Curves](docs/screenshots/equity_curves.png)
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Python 3.11+
@@ -90,7 +93,7 @@ alphaforge build
 # Output: dist/AlphaForge/AlphaForge.exe
 ```
 
-## 📁 Data Storage
+## Data Storage
 All data stays on your machine:
 
 ```text
@@ -104,7 +107,7 @@ data/
     └── {strategy_id}/
 ```
 
-## ⌨️ CLI Reference
+## CLI Reference
 | Command | Description |
 | --- | --- |
 | `alphaforge init` | Initialize database and directories |
@@ -125,7 +128,7 @@ data/
 --non-interactive   Skip duplicate prompts
 ```
 
-## 📊 RealTest Integration
+## RealTest Integration
 AlphaForge expects two types of CSV output from RealTest:
 
 ### Stats/Optimization CSV
@@ -139,18 +142,18 @@ Columns after `MaxExp` are treated as strategy parameters.
 Date,Strategy,Equity,TWEQ,Drawdown,DDBars,Daily,Weekly,Monthly,Quarterly,Yearly,M2M,MAE,MFE,Setups,Orders,Entries,Exits,Positions,Invested,Exposure
 ```
 
-## 🔧 Configuration
+## Configuration
 See `config.yaml.example` for all options.
 
-## 🗺️ Roadmap
+## Roadmap
 - [ ] Folder watcher for automatic ingestion
 - [ ] Remote access with authentication
 - [ ] Automated cloud backup
 - [ ] Walk-forward analysis UI enhancements
 - [ ] Live deployment journal with broker integration
 
-## 🤝 Contributing
+## Contributing
 Issues, feature requests, and pull requests are welcome.
 
-## 📄 License
+## License
 MIT
