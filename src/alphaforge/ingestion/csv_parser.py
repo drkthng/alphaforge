@@ -61,28 +61,36 @@ def parse_value(raw: Optional[str]) -> Any:
     return s
 
 
+def _parse_d(s: str) -> date:
+    s = s.strip()
+    for fmt in ("%m/%d/%y", "%m/%d/%Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f"Could not parse date: {s}")
+
+
 def parse_date_range(dates_str: str) -> Tuple[date, date]:
-    """Parses 'M/D/YY - M/D/YY' or 'M/D/YY-M/D/YY' style strings."""
+    """
+    Parses 'M/D/YY - M/D/YY' or 'M/D/YY-M/D/YY' style strings.
+    Also supports a single 'M/D/YY' date.
+    """
     if ' - ' in dates_str:
         parts = dates_str.split(' - ')
-    elif '-' in dates_str:
+    elif '-' in dates_str and len(dates_str.split('-')) == 2:
         parts = dates_str.split('-')
     else:
-        raise ValueError(f"Invalid date range format: {dates_str}")
+        # Try as single date
+        try:
+            d = _parse_d(dates_str)
+            return d, d
+        except ValueError:
+            raise ValueError(f"Invalid date format: {dates_str}")
     
     if len(parts) != 2:
         raise ValueError(f"Invalid date range format: {dates_str}")
     
-    # helper for multiple date formats
-    def _parse_d(s: str) -> date:
-        s = s.strip()
-        for fmt in ("%m/%d/%y", "%m/%d/%Y"):
-            try:
-                return datetime.strptime(s, fmt).date()
-            except ValueError:
-                continue
-        raise ValueError(f"Could not parse date: {s}")
-
     return _parse_d(parts[0]), _parse_d(parts[1])
 
 
@@ -117,7 +125,7 @@ class ParsedRow:
 
 
 def parse_stats_csv(csv_path: Path, config: AppConfig) -> List[ParsedRow]:
-    """Parses RealTest stats CSV file."""
+    """Parses RealTest stats CSV file with robust header matching."""
     results = []
     
     # Mapping from CSV header to internal metric name
@@ -129,26 +137,44 @@ def parse_stats_csv(csv_path: Path, config: AppConfig) -> List[ParsedRow]:
         "AvgLoss", "WinLen", "LossLen", "ProfitFactor", "Sharpe", 
         "AvgExp", "MaxExp"
     ]
+
+    name_aliases = {"name", "strategy", "strategy name"}
+    date_aliases = {"dates", "date", "run dates", "backtest dates"}
+    period_aliases = {"periods", "bars"}
     
     with open(csv_path, mode='r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
+        headers = reader.fieldnames or []
+        
+        # Find Aliases
+        name_col = next((h for h in headers if h.lower() in name_aliases), "Name")
+        date_col = next((h for h in headers if h.lower() in date_aliases), "Dates")
+        period_col = next((h for h in headers if h.lower() in period_aliases), "Periods")
+
         for row in reader:
             # Skip empty rows
             if not row or not any(str(v).strip() for v in row.values()):
                 continue
                 
-            strategy_name = row.get("Name")
+            strategy_name = row.get(name_col)
             if not strategy_name:
                 continue
                 
             test_number = row.get("Test", "")
+            
+            dates_val = row.get(date_col)
+            if not dates_val:
+                logger.warning(f"Skipping row: missing date column '{date_col}'")
+                continue
+
             try:
-                start_date, end_date = parse_date_range(row["Dates"])
+                start_date, end_date = parse_date_range(dates_val)
             except (ValueError, KeyError):
-                logger.warning(f"Skipping row with invalid dates: {row.get('Dates')}")
+                logger.warning(f"Skipping row with invalid dates: {dates_val}")
                 continue
                 
-            periods = int(row["Periods"]) if row.get("Periods") else None
+            periods_val = row.get(period_col)
+            periods = int(periods_val) if periods_val else None
             
             metrics = {}
             # Map metrics using config
@@ -158,13 +184,13 @@ def parse_stats_csv(csv_path: Path, config: AppConfig) -> List[ParsedRow]:
                 if internal_name and val is not None:
                     metrics[internal_name] = parse_value(val)
             
-            # Parameters are anything after MaxExp
+            # Parameters are anything not in fixed_headers and not an alias for core fields
             parameters = {}
-            # We need to be careful with header matching here
+            core_cols = {name_col, date_col, period_col, "Test"}
             for header, val in row.items():
                 if header is None: continue
                 h_stripped = header.strip()
-                if h_stripped not in fixed_headers:
+                if h_stripped not in fixed_headers and h_stripped not in core_cols:
                     parameters[h_stripped] = parse_value(val)
             
             param_hash = compute_parameter_hash(parameters)
@@ -181,6 +207,6 @@ def parse_stats_csv(csv_path: Path, config: AppConfig) -> List[ParsedRow]:
             ))
             
     if not results:
-        logger.warning(f"No valid data rows found in {csv_path}")
+        logger.warning(f"No valid data rows found in {csv_path}. Headers found: {headers}")
         
     return results

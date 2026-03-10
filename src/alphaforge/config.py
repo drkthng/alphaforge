@@ -13,6 +13,7 @@ class PathsConfig(BaseModel):
     archive_dir: str = "./data/archive"
     equity_curves_dir: str = "./data/equity_curves"
     attachments_dir: str = "./data/attachments"
+    reports_dir: str = "./data/reports"
     realtest_output_dir: Optional[str] = None
 
 

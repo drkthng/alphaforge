@@ -6,22 +6,11 @@ render_sandbox_banner()
 
 import pandas as pd
 from datetime import datetime, date
-from alphaforge.database import get_engine, SessionLocal
-from alphaforge.config import load_config
+from dashboard.db_access import get_session
 from alphaforge.repository import StrategyRepository, NoteRepository
 from alphaforge.models import StrategyStatus, NoteType
 from components.status_badge import render_status_badge
 from components.sidebar import render_sidebar
-
-# Session management
-@st.cache_resource
-def get_db_session_factory():
-    config = load_config()
-    engine = get_engine(config.database.path)
-    return SessionLocal(engine)
-
-def get_session():
-    return get_db_session_factory()()
 
 @st.dialog("Create New Strategy")
 def show_create_form():
@@ -36,16 +25,17 @@ def show_create_form():
                 st.error("Name is required.")
             else:
                 session = get_session()
-                repo_local = StrategyRepository(session)
-                existing = repo_local.find_by_name(name)
-                if existing:
-                    st.error(f"A strategy named '{name}' already exists. Choose a different name.")
+                try:
+                    repo_local = StrategyRepository(session)
+                    existing = repo_local.find_by_name(name)
+                    if existing:
+                        st.error(f"A strategy named '{name}' already exists. Choose a different name.")
+                    else:
+                        repo_local.create(name=name, description=description, status=status)
+                        session.commit()
+                finally:
                     session.close()
-                else:
-                    repo_local.create(name=name, description=description, status=status)
-                    session.commit()
-                    session.close()
-                    st.rerun()
+                st.rerun()
 
 def render_orphan_note(note):
     with st.container(border=True):
@@ -67,15 +57,17 @@ def show_promote_dialog(strat_id, strat_name):
     
     if st.button("Confirm Promotion"):
         session = get_session()
-        repo_local = StrategyRepository(session)
-        # Update status and description (appending plan)
-        strat = repo_local.get_by_id(strat_id)
-        if strat:
-            strat.status = StrategyStatus.refining
-            if plan:
-                strat.description = (strat.description or "") + f"\n\nRefinement Plan:\n{plan}"
-            session.commit()
-        session.close()
+        try:
+            repo_local = StrategyRepository(session)
+            # Update status and description (appending plan)
+            strat = repo_local.get_by_id(strat_id)
+            if strat:
+                strat.status = StrategyStatus.refining
+                if plan:
+                    strat.description = (strat.description or "") + f"\n\nRefinement Plan:\n{plan}"
+                session.commit()
+        finally:
+            session.close()
         st.rerun()
 
 def render_strategy_card(strat):
@@ -106,10 +98,12 @@ def render_strategy_card(strat):
                 show_promote_dialog(strat['id'], strat['name'])
             else:
                 session = get_session()
-                repo_local = StrategyRepository(session)
-                repo_local.update_status(strat['id'], new_status)
-                session.commit()
-                session.close()
+                try:
+                    repo_local = StrategyRepository(session)
+                    repo_local.update_status(strat['id'], new_status)
+                    session.commit()
+                finally:
+                    session.close()
                 st.rerun()
 
 def main():
@@ -117,20 +111,21 @@ def main():
     st.title(":material/account_tree: Strategy Pipeline")
     
     session = get_session()
-    repo = StrategyRepository(session)
-    
-    # Header Actions
-    col1, col2 = st.columns([6, 1])
-    with col2:
-        if st.button("New Strategy", icon=":material/add:"):
-            show_create_form()
-
-    # Fetch data
     try:
-        strategies = repo.get_strategies_with_stats()
-    except Exception as e:
-        st.error(f"Error loading pipeline: {e}")
-        return
+        repo = StrategyRepository(session)
+        
+        # Header Actions
+        col1, col2 = st.columns([6, 1])
+        with col2:
+            if st.button("New Strategy", icon=":material/add:"):
+                show_create_form()
+    
+        # Fetch data
+        try:
+            strategies = repo.get_strategies_with_stats()
+        except Exception as e:
+            st.error(f"Error loading pipeline: {e}")
+            return
     finally:
         session.close()
 
@@ -170,9 +165,11 @@ def main():
             # Special handling for Inbox orphans
             if status == StrategyStatus.inbox:
                 session = get_session()
-                note_repo = NoteRepository(session)
-                orphans = note_repo.get_orphan_notes()
-                session.close()
+                try:
+                    note_repo = NoteRepository(session)
+                    orphans = note_repo.get_orphan_notes()
+                finally:
+                    session.close()
                 if orphans:
                     with st.expander(f"📥 Unlinked Items ({len(orphans)})", expanded=True):
                         for note in orphans:

@@ -10,10 +10,7 @@ from alphaforge.database import get_engine, SessionLocal
 from alphaforge.repository import SystemRepository
 from components.sidebar import render_sidebar
 
-def get_session():
-    config = load_config()
-    engine = get_engine(config.database.path)
-    return SessionLocal(engine)()
+from dashboard.db_access import get_session
 
 def main():
     render_sidebar()
@@ -29,9 +26,11 @@ def main():
     st.divider()
     st.header("Database Information")
     session = get_session()
-    sys_repo = SystemRepository(session)
-    stats = sys_repo.get_database_stats(config.database.path)
-    session.close()
+    try:
+        sys_repo = SystemRepository(session)
+        stats = sys_repo.get_database_stats(config.database.path)
+    finally:
+        session.close()
 
     col1, col2 = st.columns(2)
     with col1:
@@ -73,8 +72,7 @@ def main():
                 session.close()
 
     st.divider()
-    st.header("About")
-    st.write("AlphaForge Version: 0.1.0")
+    st.write("AlphaForge Version: 0.1.1")
     st.write("Link to [GitHub](https://github.com/mhptrading/alphaforge)")
 
 if __name__ == "__main__":

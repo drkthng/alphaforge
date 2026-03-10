@@ -7,6 +7,8 @@ render_sandbox_banner()
 import pandas as pd
 import difflib
 import os
+import re
+import base64
 import webbrowser
 from pathlib import Path
 from datetime import datetime, date
@@ -24,15 +26,7 @@ from components.status_badge import render_status_badge
 from components.equity_chart import render_equity_chart
 from components.sidebar import render_sidebar
 
-# Session management
-@st.cache_resource
-def get_db_session_factory():
-    config = load_config()
-    engine = get_engine(config.database.path)
-    return SessionLocal(engine)
-
-def get_session():
-    return get_db_session_factory()()
+from dashboard.db_access import get_session
 
 def main():
     render_sidebar()
@@ -107,6 +101,13 @@ def main():
             st.rerun()
 
         st.divider()
+
+        # Quick action: ingest new run for this strategy
+        st.link_button(
+            "➕ Ingest New Run",
+            url=f"/Ingest_Run?strategy_id={strategy.id}",
+            use_container_width=False,
+        )
 
         # 3. Two-column Layout
         sidebar_col, main_col = st.columns([1, 2.5])
@@ -460,16 +461,48 @@ def main():
                         format_func=lambda r: f"v{r['version_number']} — {r['run_date']:%Y-%m-%d}",
                         key="report_run_select"
                     )
-                    
+
                     artifacts = artifact_repo.list_by_run(selected_run_for_report["run_id"])
-                    report_artifact = next((a for a in artifacts if a.artifact_type == ArtifactType.html_report), None)
-                    
+                    report_artifact = next(
+                        (a for a in artifacts if a.artifact_type == ArtifactType.html_report),
+                        None,
+                    )
+
                     if report_artifact and os.path.exists(report_artifact.file_path):
-                        with open(report_artifact.file_path, "r", encoding="utf-8") as f:
+                        report_path = Path(report_artifact.file_path)
+                        report_dir = report_path.parent
+
+                        with open(report_path, "r", encoding="utf-8") as f:
                             html_content = f.read()
+
+                        # Inline images as base64 data URIs so they render
+                        # inside the Streamlit iframe.
+                        def _replace_img_src(match):
+                            src = match.group(1)
+                            img_path = (report_dir / src).resolve()
+                            if img_path.exists():
+                                suffix = img_path.suffix.lower()
+                                mime = {
+                                    ".png": "image/png",
+                                    ".jpg": "image/jpeg",
+                                    ".jpeg": "image/jpeg",
+                                    ".gif": "image/gif",
+                                }.get(suffix, "application/octet-stream")
+                                data = base64.b64encode(img_path.read_bytes()).decode()
+                                return f'src="data:{mime};base64,{data}"'
+                            return match.group(0)
+
+                        html_content = re.sub(
+                            r'src="([^"]+\.(?:png|jpg|jpeg|gif))"',
+                            _replace_img_src,
+                            html_content,
+                            flags=re.IGNORECASE,
+                        )
+
                         components.html(html_content, height=800, scrolling=True)
+
                         if st.button("🌐 Open in Browser", key="open_report_browser"):
-                            webbrowser.open(report_artifact.file_path)
+                            webbrowser.open(str(report_path))
                     else:
                         st.info("No HTML report artifact found for this run.")
                 else:

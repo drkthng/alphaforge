@@ -1,6 +1,6 @@
 [project]
 name = "alphaforge"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local-first dashboard for managing RealTest trading strategies."
 authors = [{ name = "AlphaForge Team" }]
 dependencies = [

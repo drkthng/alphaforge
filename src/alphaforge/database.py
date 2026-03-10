@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine, Engine
+from sqlalchemy import create_engine, Engine, event
 from sqlalchemy.orm import sessionmaker, Session
 
 from alphaforge.models import Base
@@ -13,11 +13,25 @@ def get_engine(db_path: str = "data/alphaforge.db", echo: bool = False) -> Engin
             os.makedirs(db_dir, exist_ok=True)
 
     connection_url = f"sqlite:///{db_path}"
-    return create_engine(
+    engine = create_engine(
         connection_url,
         echo=echo,
-        connect_args={"check_same_thread": False}  # Needed for SQLite in multi-threaded contexts like Streamlit
+        connect_args={
+            "check_same_thread": False,
+            "timeout": 30  # SQLite-level busy timeout in seconds
+        }
     )
+
+    # Enable WAL mode and other concurrency pragmas
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=30000")  # 30 seconds
+        cursor.close()
+
+    return engine
 
 
 def SessionLocal(engine: Engine) -> sessionmaker[Session]:

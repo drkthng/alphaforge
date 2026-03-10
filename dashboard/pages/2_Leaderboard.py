@@ -7,127 +7,117 @@ render_sandbox_banner()
 import pandas as pd
 from datetime import datetime, date
 import io
-from alphaforge.database import get_engine, SessionLocal
-from alphaforge.config import load_config
+from dashboard.db_access import get_session
 from alphaforge.repository import StrategyRepository, BacktestRepository, MetricsRepository, UniverseRepository
 from alphaforge.models import StrategyStatus
 from components.metrics_table import render_metrics_comparison_table
 from components.sidebar import render_sidebar
-
-# Session management
-@st.cache_resource
-def get_db_session_factory():
-    config = load_config()
-    engine = get_engine(config.database.path)
-    return SessionLocal(engine)
-
-def get_session():
-    return get_db_session_factory()()
 
 def main():
     render_sidebar()
     st.title(":material/leaderboard: Strategy Leaderboard")
     
     session = get_session()
-    strat_repo = StrategyRepository(session)
-    b_repo = BacktestRepository(session)
-    m_repo = MetricsRepository(session)
-    u_repo = UniverseRepository(session)
-    
-    # Filters
-    with st.expander("🔍 Filters", expanded=True):
-        f_col1, f_col2, f_col3, f_col4 = st.columns(4)
+    try:
+        strat_repo = StrategyRepository(session)
+        b_repo = BacktestRepository(session)
+        m_repo = MetricsRepository(session)
+        u_repo = UniverseRepository(session)
         
-        try:
-            all_strats = strat_repo.list_all()
-            all_universes = u_repo.list_all()
-            custom_metrics = m_repo.get_available_custom_metrics()
-        except Exception as e:
-            st.error(f"Error loading resources: {e}")
-            session.close()
-            return
+        # Filters
+        with st.expander("🔍 Filters", expanded=True):
+            f_col1, f_col2, f_col3, f_col4 = st.columns(4)
             
-        with f_col1:
-            selected_strat_ids = st.multiselect(
-                "Strategies",
-                options=[s.id for s in all_strats],
-                format_func=lambda sid: next(s.name for s in all_strats if s.id == sid)
-            )
-            
-        with f_col2:
-            all_statuses = list(StrategyStatus)
-            default_statuses = [s for s in all_statuses if s not in [StrategyStatus.inbox, StrategyStatus.rejected]]
-            selected_statuses = st.multiselect(
-                "Statuses",
-                options=all_statuses,
-                default=default_statuses,
-                format_func=lambda x: x.value.replace("_", " ").title()
-            )
-            
-        with f_col3:
-            selected_universes = st.multiselect(
-                "Universes",
-                options=[u.name for u in all_universes]
-            )
-            
-        with f_col4:
-            is_oos_toggle = st.radio("Sample Type", options=["All", "In-Sample", "Out-of-Sample"], horizontal=True)
-            is_in_sample = None
-            if is_oos_toggle == "In-Sample":
-                is_in_sample = True
-            elif is_oos_toggle == "Out-of-Sample":
-                is_in_sample = False
-
-        f_col5, f_col6, f_col7 = st.columns([2, 1, 1])
-        with f_col5:
-            date_range = st.date_input("Run Date Range", value=(date(2020, 1, 1), date.today()))
-            start_date, end_date = None, None
-            if isinstance(date_range, tuple) and len(date_range) == 2:
-                start_date, end_date = date_range
-
-        with f_col6:
-            min_cagr = st.number_input("Min CAGR (%)", value=None, step=1.0, key="min_cagr_filter")
-        with f_col7:
-            min_sharpe = st.number_input("Min Sharpe", value=None, step=0.1, key="min_sharpe_filter")
-
-    active_filters = sum([
-        bool(selected_strat_ids),
-        bool(set(selected_statuses) != set(default_statuses)),
-        bool(selected_universes),
-        start_date is not None,
-        min_cagr is not None,
-        min_sharpe is not None,
-    ])
-    if active_filters:
-        st.caption(f"🔍 {active_filters} filter(s) active")
-
-    filters = {
-        "strategy_ids": selected_strat_ids,
-        "statuses": selected_statuses,
-        "universes": selected_universes,
-        "start_date": start_date,
-        "end_date": end_date,
-        "is_in_sample": is_in_sample
-    }
-
-    metric_thresholds = {"min_cagr": min_cagr, "min_sharpe": min_sharpe}
-
-    # Pagination state
-    if "lb_page" not in st.session_state:
-        st.session_state.lb_page = 0
+            try:
+                all_strats = strat_repo.list_all()
+                all_universes = u_repo.list_all()
+                custom_metrics = m_repo.get_available_custom_metrics()
+            except Exception as e:
+                st.error(f"Error loading resources: {e}")
+                return
+                
+            with f_col1:
+                selected_strat_ids = st.multiselect(
+                    "Strategies",
+                    options=[s.id for s in all_strats],
+                    format_func=lambda sid: next(s.name for s in all_strats if s.id == sid)
+                )
+                
+            with f_col2:
+                all_statuses = list(StrategyStatus)
+                default_statuses = [s for s in all_statuses if s not in [StrategyStatus.inbox, StrategyStatus.rejected]]
+                selected_statuses = st.multiselect(
+                    "Statuses",
+                    options=all_statuses,
+                    default=default_statuses,
+                    format_func=lambda x: x.value.replace("_", " ").title()
+                )
+                
+            with f_col3:
+                selected_universes = st.multiselect(
+                    "Universes",
+                    options=[u.name for u in all_universes]
+                )
+                
+            with f_col4:
+                is_oos_toggle = st.radio("Sample Type", options=["All", "In-Sample", "Out-of-Sample"], horizontal=True)
+                is_in_sample = None
+                if is_oos_toggle == "In-Sample":
+                    is_in_sample = True
+                elif is_oos_toggle == "Out-of-Sample":
+                    is_in_sample = False
     
-    limit = 50
-    total_count = b_repo.get_leaderboard_count(filters)
-    total_pages = max(1, (total_count // limit) + (1 if total_count % limit > 0 else 0))
+            f_col5, f_col6, f_col7 = st.columns([2, 1, 1])
+            with f_col5:
+                date_range = st.date_input("Run Date Range", value=(date(2020, 1, 1), date.today()))
+                start_date, end_date = None, None
+                if isinstance(date_range, tuple) and len(date_range) == 2:
+                    start_date, end_date = date_range
     
-    if st.session_state.lb_page >= total_pages:
-        st.session_state.lb_page = 0
-
-    # Data Fetching
-    offset = st.session_state.lb_page * limit
-    with st.spinner("Loading runs..."):
-        data = b_repo.get_leaderboard(filters, limit=limit, offset=offset)
-    session.close()
+            with f_col6:
+                min_cagr = st.number_input("Min CAGR (%)", value=None, step=1.0, key="min_cagr_filter")
+            with f_col7:
+                min_sharpe = st.number_input("Min Sharpe", value=None, step=0.1, key="min_sharpe_filter")
+    
+        active_filters = sum([
+            bool(selected_strat_ids),
+            bool(set(selected_statuses) != set(default_statuses)),
+            bool(selected_universes),
+            start_date is not None,
+            min_cagr is not None,
+            min_sharpe is not None,
+        ])
+        if active_filters:
+            st.caption(f"🔍 {active_filters} filter(s) active")
+    
+        filters = {
+            "strategy_ids": selected_strat_ids,
+            "statuses": selected_statuses,
+            "universes": selected_universes,
+            "start_date": start_date,
+            "end_date": end_date,
+            "is_in_sample": is_in_sample
+        }
+    
+        metric_thresholds = {"min_cagr": min_cagr, "min_sharpe": min_sharpe}
+    
+        # Pagination state
+        if "lb_page" not in st.session_state:
+            st.session_state.lb_page = 0
+        
+        limit = 50
+        total_count = b_repo.get_leaderboard_count(filters)
+        total_pages = max(1, (total_count // limit) + (1 if total_count % limit > 0 else 0))
+        
+        if st.session_state.lb_page >= total_pages:
+            st.session_state.lb_page = 0
+    
+        # Data Fetching
+        offset = st.session_state.lb_page * limit
+        with st.spinner("Loading runs..."):
+            data = b_repo.get_leaderboard(filters, limit=limit, offset=offset)
+    finally:
+        session.close()
 
     if not data:
         st.warning("No runs found matching the filters.")

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.1] — 2026-03-10
+
+### Fixed
+- **Database Stability**: Resolved persistent "database is locked" errors by enabling SQLite WAL (Write-Ahead Logging) mode and increasing busy timeouts.
+- **Connection Leaks**: Implemented robust `try...finally` session management across all dashboard pages to ensure database connections are always closed.
+- **Performance**: Centralized database engine management and session pooling using `st.cache_resource`, significantly improving application loading times and stability.
+- **Data Persistence**: Fixed issue where selected directories in "Ingest Run" were lost on refresh.
+
+### Added
+- **Visual Progress**: Real-time progress bar for ingestion processes, showing percentage and current strategy updates.
+
 ## [0.1.0] — 2026-03-07
 
 ### Added

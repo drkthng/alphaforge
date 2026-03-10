@@ -1,24 +1,22 @@
 import streamlit as st
 import os
-from alphaforge.database import get_engine, SessionLocal
-from alphaforge.config import load_config
+from dashboard.db_access import get_session
 from alphaforge.repository import StrategyRepository, BacktestRepository, SystemRepository
 from alphaforge.models import StrategyStatus
+from dashboard.state_manager import load_gui_state, save_gui_state
 
 @st.cache_data(ttl=60)
-def _load_sidebar_stats():
+def _load_sidebar_stats(env: str):
     try:
-        config = load_config()
-        engine = get_engine(config.database.path)
-        Session = SessionLocal(engine)
-        session = Session()
+        session = get_session()
         try:
             strat_repo = StrategyRepository(session)
             b_repo = BacktestRepository(session)
-            all_strats = strat_repo.list_all()
-            total_strategies = len(all_strats)
-            total_runs = b_repo.get_leaderboard_count({})
-            in_testing = len([s for s in all_strats if s.status == StrategyStatus.testing])
+            
+            total_strategies = strat_repo.count_all()
+            total_runs = b_repo.count_all()
+            in_testing = strat_repo.count_by_status(StrategyStatus.testing)
+            
             return total_strategies, total_runs, in_testing
         finally:
             session.close()
@@ -26,17 +24,22 @@ def _load_sidebar_stats():
         return 0, 0, 0
 
 def render_sidebar():
-    st.sidebar.markdown("### 🔥 AlphaForge")
-    st.sidebar.caption("v0.1.0 Research Engine")
+    st.sidebar.caption("v0.1.1 Research Engine")
     st.sidebar.divider()
     
-    total, runs, testing = _load_sidebar_stats()
+    current_env = os.environ.get("ALPHAFORGE_ENV", "production")
+    total, runs, testing = _load_sidebar_stats(current_env)
     
-    # Premium metric layout
+    # Premium metric layout with environment badge
+    is_sandbox = os.environ.get("ALPHAFORGE_ENV") == "sandbox"
+    env_label = " (Sandbox)" if is_sandbox else " (Production)"
+    env_color = "orange" if is_sandbox else "blue"
+    
     with st.sidebar.container():
         c1, c2 = st.columns(2)
-        c1.metric("Strategies", total)
+        c1.metric("Strategies", total, help=f"Currently using {env_label[2:-1]} database")
         c2.metric("Backtests", runs)
+        st.sidebar.caption(f"Active DB: :{env_color}[{env_label[2:-1]}]")
     
     st.sidebar.divider()
     
@@ -47,6 +50,7 @@ def render_sidebar():
     st.sidebar.page_link("pages/2_Leaderboard.py", label="Global Leaderboard", icon=":material/leaderboard:")
     st.sidebar.page_link("pages/3_Strategy_Detail.py", label="Analysis Detail", icon=":material/monitoring:")
     st.sidebar.page_link("pages/4_Settings.py", label="System Settings", icon=":material/settings:")
+    st.sidebar.page_link("pages/5_Ingest_Run.py", label="Ingest Run", icon=":material/upload_file:")
     
     st.sidebar.divider()
     
@@ -54,10 +58,7 @@ def render_sidebar():
     search_query = st.sidebar.text_input("Search strategies & notes...", key="global_search_sidebar")
     
     if search_query:
-        config = load_config()
-        engine = get_engine(config.database.path)
-        Session = SessionLocal(engine)
-        session = Session()
+        session = get_session()
         try:
             sys_repo = SystemRepository(session)
             results = sys_repo.search_all(search_query)
@@ -78,17 +79,19 @@ def render_sidebar():
     st.sidebar.divider()
     
     st.sidebar.markdown("### :material/science: Environment")
-    current_env = os.environ.get("ALPHAFORGE_ENV", "production")
     
-    is_sandbox = st.sidebar.toggle("Sandbox Mode", value=(current_env == "sandbox"), key="sandbox_toggle")
+    # Toggle reflects current environment state
+    toggle_val = st.sidebar.toggle("Sandbox Mode", value=is_sandbox, key="sandbox_toggle")
     
-    if is_sandbox and current_env != "sandbox":
-        os.environ["ALPHAFORGE_ENV"] = "sandbox"
-        st.cache_data.clear()
-        st.cache_resource.clear()
-        st.rerun()
-    elif not is_sandbox and current_env == "sandbox":
-        os.environ["ALPHAFORGE_ENV"] = "production"
+    if toggle_val != is_sandbox:
+        new_env = "sandbox" if toggle_val else "production"
+        state = load_gui_state()
+        state["environment"] = new_env
+        save_gui_state(state)
+        
+        # Explicitly update os.environ so the next call in this same run sees it
+        os.environ["ALPHAFORGE_ENV"] = new_env
+        
         st.cache_data.clear()
         st.cache_resource.clear()
         st.rerun()

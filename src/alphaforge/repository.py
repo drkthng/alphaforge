@@ -28,6 +28,12 @@ class StrategyRepository:
     def list_all(self) -> List[Strategy]:
         return list(self.session.scalars(select(Strategy)).all())
 
+    def count_all(self) -> int:
+        return self.session.scalar(select(func.count(Strategy.id))) or 0
+
+    def count_by_status(self, status: StrategyStatus) -> int:
+        return self.session.scalar(select(func.count(Strategy.id)).where(Strategy.status == status)) or 0
+
     def update(self, strategy_id: int, **kwargs) -> Optional[Strategy]:
         db_obj = self.get_by_id(strategy_id)
         if db_obj:
@@ -260,6 +266,9 @@ class BacktestRepository:
             stmt = stmt.where(BacktestRun.is_in_sample == filters["is_in_sample"])
 
         return self.session.scalar(stmt) or 0
+
+    def count_all(self) -> int:
+        return self.session.scalar(select(func.count(BacktestRun.id))) or 0
 
     def get_runs_for_strategy(self, strategy_id: int, version_id: int = None) -> List[Dict[str, Any]]:
         stmt = (

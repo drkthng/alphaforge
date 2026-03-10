@@ -1,11 +1,12 @@
 import logging
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
 from alphaforge.models import ArtifactType, RunArtifact
 from alphaforge.repository import ArtifactRepository
+from alphaforge.ingestion.report_copier import copy_report_folder
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,6 @@ def scan_report_directory(report_dir: Path) -> List[dict]:
     image_extensions = [".png", ".jpg", ".jpeg", ".gif"]
     for ext in image_extensions:
         for path in report_dir.rglob(f"*{ext}"):
-            # Avoid duplicate artifacts if something is both an image and... well, unlikely.
             results.append({
                 "file_path": str(path),
                 "artifact_type": ArtifactType.equity_image
@@ -35,8 +35,42 @@ def scan_report_directory(report_dir: Path) -> List[dict]:
             
     return results
 
-def link_reports(session: Session, run_id: int, report_dir: Path) -> List[RunArtifact]:
-    """Scan a directory and create RunArtifact records for each found report/image."""
+def link_reports(
+    session: Session,
+    run_id: int,
+    report_dir: Path,
+    copy_to: Optional[Path] = None,
+    strategy_slug: Optional[str] = None,
+) -> List[RunArtifact]:
+    """
+    Scan a directory and create RunArtifact records for each found
+    report/image.
+
+    Parameters
+    ----------
+    session : Session
+        Active SQLAlchemy session.
+    run_id : int
+        Backtest run to attach artifacts to.
+    report_dir : Path
+        Directory containing the RealTest report output.
+    copy_to : Path, optional
+        Base directory to copy the report into before linking.
+        When provided, ``strategy_slug`` is also required.
+    strategy_slug : str, optional
+        Required when ``copy_to`` is set. Used as the parent folder name
+        inside ``copy_to``.
+    """
+    if copy_to is not None:
+        if not strategy_slug:
+            raise ValueError("strategy_slug is required when copy_to is set")
+        report_dir = copy_report_folder(
+            source_dir=report_dir,
+            strategy_slug=strategy_slug,
+            run_id=run_id,
+            reports_base_dir=copy_to,
+        )
+
     artifact_repo = ArtifactRepository(session)
     items = scan_report_directory(report_dir)
     

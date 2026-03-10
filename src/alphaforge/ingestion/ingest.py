@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Callable
 
 from sqlalchemy.orm import Session
 
@@ -26,7 +26,8 @@ def ingest_stats(
     report_dir: Optional[Path] = None,
     strategy_name_override: Optional[str] = None,
     universe_name: Optional[str] = None,
-    duplicate_note: Optional[str] = None
+    duplicate_note: Optional[str] = None,
+    progress_callback: Optional[Callable[[int, int, str], None]] = None
 ) -> List[BacktestRun]:
     """
     Orchestrates the ingestion of a RealTest stats CSV file.
@@ -42,43 +43,55 @@ def ingest_stats(
     if not rows:
         raise ValueError(f"No rows found in CSV: {csv_path}")
 
-    # 2. Determine Strategy
-    strategy_name = strategy_name_override or rows[0].strategy_name
-    strategy = strat_repo.find_by_name(strategy_name)
-    if not strategy:
-        logger.info(f"Creating new strategy: {strategy_name}")
-        strategy = strat_repo.create(name=strategy_name)
-
-    # 3. Get or Create Version
-    archive_dir = Path(config.paths.archive_dir)
-    version = get_or_create_version(
-        session, 
-        strategy.id, 
-        rts_path, 
-        archive_dir, 
-        strategy.slug
-    )
-
-    # 4. Get Universe if provided
-    universe_id = None
-    if universe_name:
-        universe = universe_repo.find_by_name(universe_name)
-        if not universe:
-            universe = universe_repo.create(name=universe_name)
-        universe_id = universe.id
-
-    # 5. Process Equity Curve (once for the whole CSV if provided)
-    equity_curve_path = None
-    if equity_path:
-        strategy_df, benchmark_df = parse_equity_csv(equity_path)
-        # Note: We'll save the parquet once we have a run_id. 
-        # Since one CSV usually corresponds to one equity file in this workflow,
-        # we'll use the ID of the first run created.
-
     created_runs = []
     run_date = datetime.now()
+    total = len(rows)
+    
+    # Cache for versions to avoid redundant lookups/archives in the same batch
+    # Key: (strategy_id, rts_path)
+    version_cache = {}
 
-    for row in rows:
+    for idx, row in enumerate(rows):
+        if progress_callback:
+            progress_callback(idx, total, f"Processing run {idx + 1}/{total} (Strategy: {row.strategy_name})")
+
+        # 2. Determine Strategy for THIS row
+        strategy_name = strategy_name_override or row.strategy_name
+        strategy = strat_repo.find_by_name(strategy_name)
+        if not strategy:
+            logger.info(f"Creating new strategy: {strategy_name}")
+            strategy = strat_repo.create(name=strategy_name)
+
+        # 3. Get or Create Version for THIS row
+        archive_dir = Path(config.paths.archive_dir)
+        cache_key = (strategy.id, str(rts_path) if rts_path else None)
+        
+        if cache_key in version_cache:
+            version = version_cache[cache_key]
+        else:
+            version = get_or_create_version(
+                session, 
+                strategy.id, 
+                rts_path, 
+                archive_dir, 
+                strategy.slug
+            )
+            version_cache[cache_key] = version
+
+        # 4. Get Universe if provided
+        universe_id = None
+        if universe_name:
+            universe = universe_repo.find_by_name(universe_name)
+            if not universe:
+                universe = universe_repo.create(name=universe_name)
+            universe_id = universe.id
+
+        # 5. Process Equity Curve (once per run if provided)
+        # Note: If multiple rows share one equity file, we link them all.
+        equity_curve_path = None
+        if equity_path:
+            strategy_df, benchmark_df = parse_equity_csv(equity_path)
+
         # 6. Duplicate Detection
         duplicates = backtest_repo.find_duplicates(version.id, row.parameter_hash)
         
@@ -92,7 +105,6 @@ def ingest_stats(
             current_note = duplicate_note or "Duplicate detected during ingestion"
 
         # 7. Create BacktestRun
-        # Store test_number in parameters_json as metadata
         params = row.parameters.copy()
         params["_test_number"] = row.test_number
 
@@ -110,28 +122,33 @@ def ingest_stats(
 
         # 8. Create RunMetric
         metrics_data = row.metrics.copy()
-        # Force total_trades to int if it's there
         if "total_trades" in metrics_data and metrics_data["total_trades"] is not None:
             metrics_data["total_trades"] = int(metrics_data["total_trades"])
             
         metrics_repo.create(run_id=run.id, **metrics_data)
 
         # 9. Handle Equity Curve
-        if equity_path and equity_curve_path is None:
-            # Save equity parquet using this first run's ID
+        if equity_path:
             equity_dir = Path(config.paths.equity_curves_dir)
             equity_curve_path = str(save_equity_parquet(strategy_df, benchmark_df, run.id, equity_dir))
-            run.equity_curve_path = equity_curve_path
-        elif equity_curve_path:
-            # Reuse the same equity path for subsequent rows in the same batch
             run.equity_curve_path = equity_curve_path
 
         # 10. Link Reports
         if report_dir:
-            link_reports(session, run.id, report_dir)
+            reports_dir = Path(config.paths.reports_dir)
+            link_reports(
+                session,
+                run.id,
+                report_dir,
+                copy_to=reports_dir,
+                strategy_slug=strategy.slug,
+            )
 
         created_runs.append(run)
 
+    if progress_callback:
+        progress_callback(total, total, f"Finalizing ingestion of {total} runs...")
+
     session.flush()
-    logger.info(f"Successfully ingested {len(created_runs)} runs for strategy '{strategy_name}'")
+    logger.info(f"Successfully ingested {len(created_runs)} runs.")
     return created_runs
