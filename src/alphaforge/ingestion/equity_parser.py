@@ -6,7 +6,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-def parse_equity_csv(csv_path: Path) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
+def parse_equity_csv(csv_path: Path, primary_strategy_name: Optional[str] = None) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
     df = pd.read_csv(csv_path, encoding="utf-8-sig")
     headers = df.columns.tolist()
     
@@ -30,7 +30,7 @@ def parse_equity_csv(csv_path: Path) -> Tuple[pd.DataFrame, Optional[pd.DataFram
             strategy_col = "Strategy"
         elif equity_col is not None and date_col in df.columns:
             # Narrow single-strat format without a strategy name column: Date, Equity
-            df["Strategy"] = "PrimaryStrategy" 
+            df["Strategy"] = primary_strategy_name or "PrimaryStrategy" 
             strategy_col = "Strategy"
         else:
             logger.error(f"Failed to parse equity CSV: {csv_path}. Could not identify required columns from {headers}")
@@ -43,13 +43,16 @@ def parse_equity_csv(csv_path: Path) -> Tuple[pd.DataFrame, Optional[pd.DataFram
         return pd.DataFrame(), None
         
     # 2. Determine primary strategy vs benchmark
-    counts = df[strategy_col].value_counts()
-    primary_name = counts.idxmax()
-    
-    if len(unique_strategies) > 1 and primary_name == "Benchmark":
-        other_strats = [s for s in unique_strategies if s != "Benchmark"]
-        if other_strats:
-            primary_name = other_strats[0]
+    if primary_strategy_name and primary_strategy_name in unique_strategies:
+        primary_name = primary_strategy_name
+    else:
+        counts = df[strategy_col].value_counts()
+        primary_name = counts.idxmax()
+        
+        if len(unique_strategies) > 1 and primary_name == "Benchmark":
+            other_strats = [s for s in unique_strategies if s != "Benchmark"]
+            if other_strats:
+                primary_name = other_strats[0]
 
     strategy_df = df[df[strategy_col] == primary_name].copy()
     

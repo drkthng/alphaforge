@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from sqlalchemy import create_engine, Engine, event
 from sqlalchemy.orm import sessionmaker, Session
 
@@ -39,8 +40,11 @@ def SessionLocal(engine: Engine) -> sessionmaker[Session]:
     return sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def get_session(db_path: str = "data/alphaforge.db") -> Session:
-    """Helper to get a new session with default configuration."""
+def get_session(db_path: Optional[str] = None) -> Session:
+    """Helper to get a new session with default configuration from load_config()."""
+    if db_path is None:
+        from alphaforge.config import load_config
+        db_path = load_config().database.path
     return SessionLocal(get_engine(db_path))()
 
 

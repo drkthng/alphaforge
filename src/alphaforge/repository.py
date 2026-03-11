@@ -46,6 +46,21 @@ class StrategyRepository:
     def delete(self, strategy_id: int) -> bool:
         db_obj = self.get_by_id(strategy_id)
         if db_obj:
+            # We must delete files for all runs first
+            for v in db_obj.versions:
+                for run in v.runs:
+                    if run.equity_curve_path and os.path.exists(run.equity_curve_path):
+                        try:
+                            os.remove(run.equity_curve_path)
+                        except Exception:
+                            pass
+                    
+                    if run.trade_log_path and os.path.exists(run.trade_log_path):
+                        try:
+                            os.remove(run.trade_log_path)
+                        except Exception:
+                            pass
+            
             self.session.delete(db_obj)
             self.session.flush()
             return True
@@ -171,6 +186,28 @@ class BacktestRepository:
                 .where(StrategyVersion.strategy_id == strategy_id)
             ).all()
         )
+
+    def delete(self, run_id: int) -> bool:
+        run = self.get_by_id(run_id)
+        if not run:
+            return False
+        
+        # Delete associated files
+        if run.equity_curve_path and os.path.exists(run.equity_curve_path):
+            try:
+                os.remove(run.equity_curve_path)
+            except Exception:
+                pass
+        
+        if run.trade_log_path and os.path.exists(run.trade_log_path):
+            try:
+                os.remove(run.trade_log_path)
+            except Exception:
+                pass
+                
+        self.session.delete(run)
+        self.session.flush()
+        return True
 
     def get_leaderboard(
         self, 

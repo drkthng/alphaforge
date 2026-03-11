@@ -151,6 +151,17 @@ def parse_stats_csv(csv_path: Path, config: AppConfig) -> List[ParsedRow]:
         date_col = next((h for h in headers if h.lower() in date_aliases), "Dates")
         period_col = next((h for h in headers if h.lower() in period_aliases), "Periods")
 
+        # Periodic Report Detection: If the file contains columns unique to daily reports, reject it.
+        periodic_detection_cols = {"equity", "tweq", "drawdown", "daily", "weekly", "monthly"}
+        headers_lower = {h.lower() for h in headers}
+        found_periodic = headers_lower.intersection(periodic_detection_cols)
+        if found_periodic:
+            raise ValueError(
+                f"This file looks like a Periodic Report (found columns: {list(found_periodic)}). "
+                "AlphaForge requires a Backtest Summary CSV as the primary ingestion file. "
+                "Please use the periodic report file as the --equity-csv instead."
+            )
+
         for row in reader:
             # Skip empty rows
             if not row or not any(str(v).strip() for v in row.values()):

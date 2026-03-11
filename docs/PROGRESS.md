@@ -3,6 +3,11 @@
 ## In Progress
 
 ## Completed
+- [x] `2026-03-10` Phase 8 — Ingestion Robustness & Cleanup
+  - [x] Implemented periodic report detection to prevent accidental multi-run ingestion
+  - [x] Improved equity parser to handle interleaved strategy/benchmark data
+  - [x] Fixed configuration bug where CLI ignored environment-specific databases
+  - [x] Added `delete-strategy` and `delete-run` CLI commands for manual cleanup
 - [x] `2026-03-07` Phase 7 — UI Polish & Professionalization
   - [x] Consolidated navigation (disabled default Streamlit panel)
   - [x] Replaced infantile icons with professional Material Icons

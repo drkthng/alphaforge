@@ -149,6 +149,72 @@ def refresh_run(
     session.close()
 
 
+@app.command("delete-strategy")
+def delete_strategy_cmd(
+    name_or_id: str = typer.Argument(..., help="Name or ID of the strategy to delete"),
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt")
+):
+    """Delete a strategy and all its versions, runs, and associated files."""
+    session = get_session()
+    repo = StrategyRepository(session)
+    
+    if name_or_id.isdigit():
+        strategy = repo.get_by_id(int(name_or_id))
+    else:
+        strategy = repo.find_by_name(name_or_id)
+        
+    if not strategy:
+        console.print(f"[red]Strategy '{name_or_id}' not found.[/red]")
+        session.close()
+        raise typer.Exit(code=1)
+        
+    if not force:
+        confirm = typer.confirm(f"Are you sure you want to delete strategy '{strategy.name}' and all its data?")
+        if not confirm:
+            session.close()
+            raise typer.Exit()
+            
+    try:
+        name = strategy.name
+        repo.delete(strategy.id)
+        session.commit()
+        console.print(f"[green]Successfully deleted strategy '{name}' and all associated files.[/green]")
+    except Exception as e:
+        session.rollback()
+        console.print(f"[red]Error deleting strategy: {e}[/red]")
+    finally:
+        session.close()
+
+@app.command("delete-run")
+def delete_run_cmd(
+    run_id: int = typer.Argument(..., help="ID of the backtest run to delete"),
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt")
+):
+    """Delete a specific backtest run and its metrics/files."""
+    session = get_session()
+    repo = BacktestRepository(session)
+    
+    run = repo.get_by_id(run_id)
+    if not run:
+        console.print(f"[red]Run {run_id} not found.[/red]")
+        session.close()
+        raise typer.Exit(code=1)
+        
+    if not force:
+        confirm = typer.confirm(f"Are you sure you want to delete run {run_id}?")
+        if not confirm:
+            session.close()
+            raise typer.Exit()
+            
+    try:
+        repo.delete(run_id)
+        session.commit()
+        console.print(f"[green]Successfully deleted run {run_id} and its associated files.[/green]")
+    except Exception as e:
+        session.rollback()
+        console.print(f"[red]Error deleting run: {e}[/red]")
+    finally:
+        session.close()
 @list_app.command("strategies")
 def list_strategies():
     """List all strategies in the database."""

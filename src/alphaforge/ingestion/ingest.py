@@ -90,7 +90,7 @@ def ingest_stats(
         # Note: If multiple rows share one equity file, we link them all.
         equity_curve_path = None
         if equity_path:
-            strategy_df, benchmark_df = parse_equity_csv(equity_path)
+            strategy_df, benchmark_df = parse_equity_csv(equity_path, primary_strategy_name=strategy_name)
 
         # 6. Duplicate Detection
         duplicates = backtest_repo.find_duplicates(version.id, row.parameter_hash)
