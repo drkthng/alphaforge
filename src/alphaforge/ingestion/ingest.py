@@ -27,7 +27,8 @@ def ingest_stats(
     strategy_name_override: Optional[str] = None,
     universe_name: Optional[str] = None,
     duplicate_note: Optional[str] = None,
-    progress_callback: Optional[Callable[[int, int, str], None]] = None
+    progress_callback: Optional[Callable[[int, int, str], None]] = None,
+    target_row_index: Optional[int] = None,
 ) -> List[BacktestRun]:
     """
     Orchestrates the ingestion of a RealTest stats CSV file.
@@ -87,10 +88,11 @@ def ingest_stats(
             universe_id = universe.id
 
         # 5. Process Equity Curve (once per run if provided)
-        # Note: If multiple rows share one equity file, we link them all.
-        equity_curve_path = None
-        if equity_path:
-            strategy_df, benchmark_df = parse_equity_csv(equity_path, primary_strategy_name=strategy_name)
+        # Determine if we should attach optional files to THIS row
+        attach_optional = (
+            (target_row_index is None and total == 1) or
+            (target_row_index == idx)
+        )
 
         # 6. Duplicate Detection
         duplicates = backtest_repo.find_duplicates(version.id, row.parameter_hash)
@@ -123,18 +125,19 @@ def ingest_stats(
         # 8. Create RunMetric
         metrics_data = row.metrics.copy()
         if "total_trades" in metrics_data and metrics_data["total_trades"] is not None:
-            metrics_data["total_trades"] = int(metrics_data["total_trades"])
+            metrics_data["total_trades"] = int(str(metrics_data["total_trades"]).replace(",", ""))
             
         metrics_repo.create(run_id=run.id, **metrics_data)
 
         # 9. Handle Equity Curve
-        if equity_path:
+        if equity_path and attach_optional:
+            strategy_df, benchmark_df = parse_equity_csv(equity_path, primary_strategy_name=strategy_name)
             equity_dir = Path(config.paths.equity_curves_dir)
             equity_curve_path = str(save_equity_parquet(strategy_df, benchmark_df, run.id, equity_dir))
             run.equity_curve_path = equity_curve_path
 
         # 10. Link Reports
-        if report_dir:
+        if report_dir and attach_optional:
             reports_dir = Path(config.paths.reports_dir)
             link_reports(
                 session,

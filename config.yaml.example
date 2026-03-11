@@ -11,7 +11,7 @@ paths:
   realtest_output_dir: null  # Set to your RealTest output folder, e.g., "C:/RealTest/Output"
 
 realtest:
-  stats_csv_columns: {}  # Map RealTest CSV column headers to AlphaForge metrics here
+  # Reserved for future RealTest-specific settings
 
 server:
   port: 8501

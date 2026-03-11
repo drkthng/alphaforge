@@ -28,16 +28,6 @@ def session_and_config(tmp_path):
     config = AppConfig()
     config.paths.archive_dir = str(tmp_path / "archive")
     config.paths.equity_curves_dir = str(tmp_path / "equity_curves")
-    
-    # Add metric mapping
-    config.realtest.stats_csv_columns = {
-        "NetProfit": "net_profit",
-        "Sharpe": "sharpe",
-        "Trades": "total_trades",
-        "MaxDD": "max_drawdown",
-        "ROR": "rate_of_return",
-        "AvgExp": "avg_exposure"
-    }
     yield session, config
     session.close()
 
@@ -51,6 +41,7 @@ def test_ingest_creates_strategy_version_runs_metrics(session_and_config):
         rts_path=FIXTURES / "sample_strategy.rts",
         equity_path=FIXTURES / "sample_equity.csv",
         strategy_name_override="Test Strategy",
+        target_row_index=0,
     )
     session.commit()
 
@@ -65,24 +56,24 @@ def test_ingest_creates_strategy_version_runs_metrics(session_and_config):
     assert ver.rts_sha256 is not None
     assert len(ver.rts_sha256) == 64  # hex SHA-256
 
-    # 3 runs (one per CSV row)
-    assert session.scalar(select(func.count(BacktestRun.id))) == 3
+    # 2 runs (one per CSV row in new sample_stats.csv)
+    assert session.scalar(select(func.count(BacktestRun.id))) == 2
 
-    # 3 RunMetric records
-    assert session.scalar(select(func.count(RunMetric.id))) == 3
+    # 2 RunMetric records
+    assert session.scalar(select(func.count(RunMetric.id))) == 2
 
     # Spot-check metric values on first run
     first_run = runs[0]
     m = session.scalars(
         select(RunMetric).where(RunMetric.run_id == first_run.id)
     ).first()
-    assert m.net_profit == 543210
-    assert m.sharpe == 1.8
-    assert m.total_trades == 100
+    assert m.net_profit == 951996866.0
+    assert m.sharpe == 1.02
+    assert m.total_trades == 1545
 
-    # Parameters contain lookback and threshold
-    assert first_run.parameters_json["lookback"] == 20
-    assert first_run.parameters_json["threshold"] == 0.5
+    # Parameters contain extra columns from CSV
+    assert first_run.parameters_json["positions"] == 5
+    assert first_run.parameters_json["FactorType"] == 2
 
     # .rts file archived
     archive_dir = Path(config.paths.archive_dir)
@@ -113,7 +104,7 @@ def test_duplicate_detection_on_reingest(session_and_config):
         strategy_name_override="Test Strategy",
     )
     session.commit()
-    assert session.scalar(select(func.count(BacktestRun.id))) == 3
+    assert session.scalar(select(func.count(BacktestRun.id))) == 2
 
     # Second ingest — same file, same rts
     runs2 = ingest_stats(
@@ -125,8 +116,8 @@ def test_duplicate_detection_on_reingest(session_and_config):
     )
     session.commit()
 
-    # Now 6 runs total, but the latter 3 have duplicate_of_id set
-    assert session.scalar(select(func.count(BacktestRun.id))) == 6
+    # Now 4 runs total (2 original + 2 duplicates), the latter 2 have duplicate_of_id set
+    assert session.scalar(select(func.count(BacktestRun.id))) == 4
     for r in runs2:
         assert r.duplicate_of_id is not None, f"Run {r.id} should be marked duplicate"
 

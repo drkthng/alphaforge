@@ -26,6 +26,8 @@ from components.status_badge import render_status_badge
 from components.equity_chart import render_equity_chart
 from components.sidebar import render_sidebar
 
+from alphaforge.ingestion.attach import attach_equity, attach_report
+
 from dashboard.db_access import get_session
 
 def main():
@@ -345,6 +347,49 @@ def main():
                         use_container_width=True,
                         hide_index=True
                     )
+
+                    with st.expander(":material/attachment: Attach Files to Individual Run"):
+                        st.caption("Missing an equity curve or report? Attach it here to a specific run.")
+                        
+                        a_col1, a_col2 = st.columns([1, 2])
+                        with a_col1:
+                            # Map run labels to run IDs
+                            run_map = {f"Test {r['test_number']} ({r['run_date']:%Y-%m-%d})": r["run_id"] for r in filtered_runs}
+                            target_run_label = st.selectbox("Select Target Run", options=list(run_map.keys()), key="attach_target_run")
+                            target_run_id = run_map[target_run_label]
+                        
+                        with a_col2:
+                            attach_type = st.radio("What to attach?", ["Equity Curve (CSV)", "RealTest Report (Folder)"], horizontal=True)
+                            
+                            if attach_type == "Equity Curve (CSV)":
+                                eq_path = st.text_input("Absolute Path to Equity CSV", placeholder=r"C:\RealTest\Output\MyStrat_stats.csv", key="attach_eq_path")
+                                if st.button("Link Equity Curve"):
+                                    if not eq_path or not Path(eq_path).exists():
+                                        st.error("Invalid path.")
+                                    else:
+                                        try:
+                                            with st.spinner("Processing..."):
+                                                attach_equity(session, target_run_id, Path(eq_path), config, strategy.name)
+                                                session.commit()
+                                                st.success("Equity curve attached!")
+                                                st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Error: {e}")
+                            
+                            else:
+                                rep_path = st.text_input("Absolute Path to Report Folder", placeholder=r"D:\RealTest\Output\Reports\MyStrat", key="attach_rep_path")
+                                if st.button("Link Report Folder"):
+                                    if not rep_path or not Path(rep_path).exists():
+                                        st.error("Invalid path.")
+                                    else:
+                                        try:
+                                            with st.spinner("Processing..."):
+                                                attach_report(session, target_run_id, Path(rep_path), config, strategy.slug)
+                                                session.commit()
+                                                st.success("Report attached!")
+                                                st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Error: {e}")
                 else:
                     st.info("No runs found for selected filters.")
 

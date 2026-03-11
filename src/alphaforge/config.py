@@ -18,7 +18,7 @@ class PathsConfig(BaseModel):
 
 
 class RealTestConfig(BaseModel):
-    stats_csv_columns: Dict[str, str] = Field(default_factory=dict)
+    pass
 
 
 class ServerConfig(BaseModel):

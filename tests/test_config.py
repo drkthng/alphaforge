@@ -39,7 +39,7 @@ def test_load_config_invalid_types(tmp_path):
 def test_load_config_deep_invalid_type(tmp_path):
     from pydantic import ValidationError
     cfg_file = tmp_path / "invalid_deep.yaml"
-    # stats_csv_columns should be Dict[str, str]
-    cfg_file.write_text("realtest:\n  stats_csv_columns: [1, 2, 3]")
+    # database path should be str
+    cfg_file.write_text("database:\n  path: [1, 2, 3]")
     with pytest.raises(ValidationError):
         load_config(str(cfg_file))

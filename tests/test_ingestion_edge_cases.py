@@ -22,6 +22,7 @@ def test_csv_extra_columns(tmp_path):
     config = AppConfig()
     rows = parse_stats_csv(csv_path, config)
     assert len(rows) == 1
+    # Headers after MaxExp are parameters
     assert "ExtraCol" in rows[0].parameters
     assert rows[0].parameters["ExtraCol"] == "ExtraVal"
 
@@ -35,7 +36,6 @@ def test_csv_missing_columns(tmp_path):
     csv_path.write_text(csv_content)
     
     config = AppConfig()
-    config.realtest.stats_csv_columns = {"Sharpe": "sharpe", "NetProfit": "net_profit"}
     
     rows = parse_stats_csv(csv_path, config)
     assert len(rows) == 1
@@ -79,12 +79,11 @@ def test_csv_non_numeric_metrics(tmp_path):
     csv_path.write_text(csv_content)
     
     config = AppConfig()
-    config.realtest.stats_csv_columns = {"NetProfit": "net_profit", "comp": "comp", "ROR": "ror"}
     rows = parse_stats_csv(csv_path, config)
     
     assert rows[0].metrics["net_profit"] is None
-    assert rows[0].metrics["comp"] is None
-    assert rows[0].metrics["ror"] is None
+    assert rows[0].metrics["compound_return"] is None
+    assert rows[0].metrics["cagr"] is None
 
 # 1c. Test Dollar & Percentage Parsing Edge Cases
 

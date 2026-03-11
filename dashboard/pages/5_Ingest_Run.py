@@ -1,6 +1,9 @@
 import streamlit as st
 st.set_page_config(page_title="AlphaForge — Ingest Run", page_icon="🔥", layout="wide")
 
+import logging
+logger = logging.getLogger(__name__)
+
 from components.banner import render_sandbox_banner
 render_sandbox_banner()
 
@@ -10,6 +13,8 @@ from pathlib import Path
 
 from alphaforge.repository import StrategyRepository, UniverseRepository
 from alphaforge.ingestion.ingest import ingest_stats
+from alphaforge.ingestion.csv_parser import parse_stats_csv
+from alphaforge.config import load_config
 from dashboard.db_access import get_session
 from components.sidebar import render_sidebar
 
@@ -43,10 +48,8 @@ def _browse_folder(title: str = "Select folder", initialdir: str | None = None) 
     return path
 
 
-# ---------------------------------------------------------------------------
 # DB helpers
 # ---------------------------------------------------------------------------
-from dashboard.db_access import get_session
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +242,45 @@ def main():
 
         st.button("Browse", key="browse_report", on_click=on_browse_report)
 
+    # ---- Validation & Pre-parse -----------------------------------------------
+    stats_csv_val = st.session_state.stats_csv.strip() if st.session_state.stats_csv else ""
+    csv_path = Path(stats_csv_val) if stats_csv_val else None
+    
+    row_count = 0
+    parsed_rows = []
+    if csv_path and csv_path.exists() and csv_path.is_file():
+        try:
+            parsed_rows = parse_stats_csv(csv_path, config)
+            row_count = len(parsed_rows)
+        except Exception as e:
+            st.error(f"Error reading CSV: {e}")
+            return
+
+    # ---- Optimization Run Handling -------------------------------------------
+    target_row_index = None
+    if row_count > 1:
+        st.info(f":material/bolt: Found **{row_count}** parameter combinations (Optimization Run)")
+        
+        attach_to_specific = st.toggle(
+            "Attach optional files to a specific run?",
+            help="By default, optional files (Equity, RTS, Report) only attach to single-run ingestions. "
+                 "Check this to attach them to one specific result from this optimization."
+        )
+        
+        if attach_to_specific:
+            # Create a list of labels for the dropdown
+            row_labels = []
+            for i, r in enumerate(parsed_rows):
+                # Use Test number + first 2 params as label
+                p_items = list(r.parameters.items())[:2]
+                p_str = ", ".join([f"{k}={v}" for k, v in p_items])
+                row_labels.append(f"Row {i+1}: Test {r.test_number} ({p_str}...)")
+            
+            selected_label = st.selectbox("Select target run", options=row_labels)
+            target_row_index = row_labels.index(selected_label)
+    elif row_count == 1:
+        st.success(":material/check_circle: Valid Stats CSV (Single Run)")
+
     st.divider()
 
     # ---- Submit button -------------------------------------------------------
@@ -305,7 +347,8 @@ def main():
                 report_dir=report_dir,
                 strategy_name_override=strategy_name_override,
                 universe_name=universe_name.strip() if universe_name else None,
-                progress_callback=on_progress
+                progress_callback=on_progress,
+                target_row_index=target_row_index
             )
             ingest_session.commit()
 

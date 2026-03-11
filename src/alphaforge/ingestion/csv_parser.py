@@ -12,6 +12,34 @@ from alphaforge.config import AppConfig
 
 logger = logging.getLogger(__name__)
 
+# --- Ingestion Constants ---
+
+# Hardcoded mapping: CSV column (lowercase) → RunMetric field name
+FIXED_COL_TO_METRIC = {
+    "netprofit":    "net_profit",
+    "comp":         "compound_return",
+    "ror":          "cagr",
+    "cagr":         "cagr",
+    "maxdd":        "max_drawdown",
+    "mar":          "mar",
+    "trades":       "total_trades",
+    "pctwins":      "pct_wins",
+    "expectancy":   "expectancy",
+    "avgwin":       "avg_win",
+    "average_win":  "avg_win",
+    "avgloss":      "avg_loss",
+    "average_loss": "avg_loss",
+    "winlen":       "win_length",
+    "losslen":      "loss_length",
+    "profitfactor": "profit_factor",
+    "sharpe":       "sharpe",
+    "avgexp":       "avg_exposure",
+    "maxexp":       "max_exposure",
+}
+
+METADATA_COLS = {"test", "name", "dates", "periods"}
+ALL_FIXED_COLS = METADATA_COLS | set(FIXED_COL_TO_METRIC.keys())
+
 
 def parse_value(raw: Optional[str]) -> Any:
     """
@@ -125,54 +153,69 @@ class ParsedRow:
 
 
 def parse_stats_csv(csv_path: Path, config: AppConfig) -> List[ParsedRow]:
-    """Parses RealTest stats CSV file with robust header matching."""
+    """Parses RealTest results-grid CSV export.
+
+    Columns are identified case-insensitively. Everything after the last
+    recognised fixed column (MaxExp) is treated as a strategy parameter.
+    """
     results = []
-    
-    # Mapping from CSV header to internal metric name
-    col_mapping = config.realtest.stats_csv_columns
-    
-    fixed_headers = [
-        "Test", "Name", "Dates", "Periods", "NetProfit", "comp", "ROR", 
-        "MaxDD", "MAR", "Trades", "PctWins", "Expectancy", "AvgWin", 
-        "AvgLoss", "WinLen", "LossLen", "ProfitFactor", "Sharpe", 
-        "AvgExp", "MaxExp"
-    ]
 
     name_aliases = {"name", "strategy", "strategy name"}
     date_aliases = {"dates", "date", "run dates", "backtest dates"}
     period_aliases = {"periods", "bars"}
-    
+
     with open(csv_path, mode='r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         headers = reader.fieldnames or []
-        
-        # Find Aliases
-        name_col = next((h for h in headers if h.lower() in name_aliases), "Name")
-        date_col = next((h for h in headers if h.lower() in date_aliases), "Dates")
-        period_col = next((h for h in headers if h.lower() in period_aliases), "Periods")
 
-        # Periodic Report Detection: If the file contains columns unique to daily reports, reject it.
-        periodic_detection_cols = {"equity", "tweq", "drawdown", "daily", "weekly", "monthly"}
-        headers_lower = {h.lower() for h in headers}
-        found_periodic = headers_lower.intersection(periodic_detection_cols)
-        if found_periodic:
+        # Build lowercase → original-header lookup
+        lower_to_orig = {h.lower().strip(): h for h in headers}
+
+        # --- Positive identification: require mandatory columns ---
+        required = {"test", "name", "dates", "netprofit"}
+        # Check aliases for name/dates
+        has_name = any(h.lower().strip() in name_aliases for h in headers)
+        has_dates = any(h.lower().strip() in date_aliases for h in headers)
+        has_test = "test" in lower_to_orig
+        has_netprofit = "netprofit" in lower_to_orig
+
+        if not (has_test and has_name and has_dates and has_netprofit):
+            missing = []
+            if not has_test: missing.append("Test")
+            if not has_name: missing.append("Name (or Strategy)")
+            if not has_dates: missing.append("Dates")
+            if not has_netprofit: missing.append("NetProfit")
             raise ValueError(
-                f"This file looks like a Periodic Report (found columns: {list(found_periodic)}). "
-                "AlphaForge requires a Backtest Summary CSV as the primary ingestion file. "
-                "Please use the periodic report file as the --equity-csv instead."
+                f"This file is missing required columns: {missing}. "
+                "AlphaForge expects a RealTest results-grid CSV export with "
+                "columns: Test, Name, Dates, Periods, NetProfit, ..., MaxExp, "
+                "followed by strategy-specific parameter columns."
             )
 
+        # Resolve aliases to actual header strings
+        name_col = next((h for h in headers if h.lower().strip() in name_aliases), "Name")
+        date_col = next((h for h in headers if h.lower().strip() in date_aliases), "Dates")
+        period_col = next((h for h in headers if h.lower().strip() in period_aliases), "Periods")
+
+        # Identify which headers are fixed (metrics) vs parameters
+        # by checking lowercase match against ALL_FIXED_COLS
+        fixed_orig_set = set()   # original header strings that are fixed
+        for h in headers:
+            if h.lower().strip() in ALL_FIXED_COLS:
+                fixed_orig_set.add(h)
+        # Also add the resolved alias columns
+        fixed_orig_set.update({name_col, date_col, period_col})
+
         for row in reader:
-            # Skip empty rows
             if not row or not any(str(v).strip() for v in row.values()):
                 continue
-                
+
             strategy_name = row.get(name_col)
             if not strategy_name:
                 continue
-                
-            test_number = row.get("Test", "")
-            
+
+            test_number = row.get(lower_to_orig.get("test", "Test"), "")
+
             dates_val = row.get(date_col)
             if not dates_val:
                 logger.warning(f"Skipping row: missing date column '{date_col}'")
@@ -183,29 +226,45 @@ def parse_stats_csv(csv_path: Path, config: AppConfig) -> List[ParsedRow]:
             except (ValueError, KeyError):
                 logger.warning(f"Skipping row with invalid dates: {dates_val}")
                 continue
-                
-            periods_val = row.get(period_col)
-            periods = int(periods_val) if periods_val else None
-            
+
+            period_raw = row.get(period_col)
+            try:
+                periods = int(str(period_raw).replace(",", "")) if period_raw else None
+            except (ValueError, TypeError):
+                periods = None
+
+            # --- Extract metrics (case-insensitive) ---
             metrics = {}
-            # Map metrics using config
-            for header in fixed_headers[4:]: # Skip Test, Name, Dates, Periods
-                val = row.get(header)
-                internal_name = col_mapping.get(header)
-                if internal_name and val is not None:
-                    metrics[internal_name] = parse_value(val)
-            
-            # Parameters are anything not in fixed_headers and not an alias for core fields
+            for csv_lower, metric_name in FIXED_COL_TO_METRIC.items():
+                orig_header = lower_to_orig.get(csv_lower)
+                if orig_header is None:
+                    continue
+                raw_val = row.get(orig_header)
+                if raw_val is None:
+                    continue
+                # Handle Comp column: "True"/"False" → skip as metric
+                if csv_lower == "comp" and str(raw_val).strip().lower() in ("true", "false"):
+                    continue
+                metrics[metric_name] = parse_value(raw_val)
+
+            # --- Extract parameters (everything NOT in fixed cols) ---
             parameters = {}
-            core_cols = {name_col, date_col, period_col, "Test"}
             for header, val in row.items():
-                if header is None: continue
-                h_stripped = header.strip()
-                if h_stripped not in fixed_headers and h_stripped not in core_cols:
-                    parameters[h_stripped] = parse_value(val)
-            
+                if header is None:
+                    continue
+                if header in fixed_orig_set:
+                    continue
+                parameters[header.strip()] = parse_value(val)
+
+            # Also store Comp as parameter if it was boolean
+            comp_header = lower_to_orig.get("comp")
+            if comp_header:
+                comp_raw = row.get(comp_header, "").strip().lower()
+                if comp_raw in ("true", "false"):
+                    parameters["Comp"] = comp_raw == "true"
+
             param_hash = compute_parameter_hash(parameters)
-            
+
             results.append(ParsedRow(
                 strategy_name=strategy_name,
                 test_number=test_number,
@@ -214,10 +273,10 @@ def parse_stats_csv(csv_path: Path, config: AppConfig) -> List[ParsedRow]:
                 periods=periods,
                 metrics=metrics,
                 parameters=parameters,
-                parameter_hash=param_hash
+                parameter_hash=param_hash,
             ))
-            
+
     if not results:
-        logger.warning(f"No valid data rows found in {csv_path}. Headers found: {headers}")
-        
+        logger.warning(f"No valid data rows found in {csv_path}. Headers: {headers}")
+
     return results
