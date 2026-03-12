@@ -333,12 +333,15 @@ def main():
                         df_display = df_metrics[display_cols].copy()
                         
                         def style_metrics(styler):
-                            try:
-                                styler.background_gradient(subset=['cagr'], cmap="RdYlGn")
-                                styler.background_gradient(subset=['sharpe'], cmap="RdYlGn")
-                            except (ImportError, ValueError, RuntimeError):
-                                # Fallback if matplotlib is missing or gradient fails
-                                pass
+                            import importlib.util
+                            has_matplotlib = importlib.util.find_spec("matplotlib") is not None
+                            
+                            if has_matplotlib:
+                                try:
+                                    styler.background_gradient(subset=['cagr'], cmap="RdYlGn")
+                                    styler.background_gradient(subset=['sharpe'], cmap="RdYlGn")
+                                except Exception:
+                                    pass
 
                             styler.format({
                                 "run_date": "{:%Y-%m-%d}",
@@ -603,7 +606,7 @@ def main():
                                 return match.group(0)
 
                             html_content = re.sub(
-                                r'src="([^"]+\.(?:png|jpg|jpeg|gif))"',
+                                r'src=[\'"]([^\'"]+\.(?:png|jpg|jpeg|gif))[\'"]',
                                 _replace_img_src,
                                 html_content,
                                 flags=re.IGNORECASE,
@@ -612,17 +615,19 @@ def main():
                             # Inject custom CSS for dark mode readability
                             dark_mode_css = """
                             <style>
-                                body { color: #e0e0e0 !important; background-color: #0e1117 !important; font-family: sans-serif; }
-                                table { border-collapse: collapse; width: 100%; background-color: #1a1c24 !important; color: #e0e0e0 !important; }
-                                th, td { border: 1px solid #444 !important; padding: 8px; text-align: left; }
-                                th { background-color: #262730 !important; }
-                                tr:nth-child(even) { background-color: #21252e !important; background-image: none !important; }
-                                tr:hover { background-color: #313641 !important; }
-                                .text-red { color: #ff4b4b !important; }
-                                .text-green { color: #00c853 !important; }
-                                /* Override any hardcoded black text or backgrounds */
-                                [style*="color: black"], [style*="color:#000"] { color: #e0e0e0 !important; }
-                                [style*="background-color: white"], [style*="background-color:#fff"] { background-color: #1a1c24 !important; }
+                                /* Basic reset */
+                                body { background-color: #ffffff; color: #000000; font-family: sans-serif; }
+                                table { border-collapse: collapse; width: 100%; border: 1px solid black; }
+                                th, td { border: 1px solid black; padding: 8px; text-align: left; }
+                                
+                                /* The magic dark mode conversion */
+                                html {
+                                    filter: invert(1) hue-rotate(180deg);
+                                }
+                                /* Double-invert images so they look normal */
+                                img {
+                                    filter: invert(1) hue-rotate(180deg);
+                                }
                             </style>
                             """
                             html_content = dark_mode_css + html_content
