@@ -248,310 +248,395 @@ def main():
             
             # Tab 1: Equity Curves
             with tab1:
-                st.subheader(":material/show_chart: Equity Curves")
-                if runs:
-                    if not any(r.get("equity_curve_path") for r in runs):
-                        st.info("📈 No equity curve data. Ingest a backtest with `--equity-csv` to generate curves.")
+                try:
+                    st.subheader(":material/show_chart: Equity Curves")
+                    if runs:
+                        if not any(r.get("equity_curve_path") for r in runs):
+                            st.info("📈 No equity curve data. Ingest a backtest with `--equity-csv` to generate curves.")
+                        else:
+                            col_c1, col_c2, col_c3 = st.columns([3, 1, 1])
+                            with col_c1:
+                                selected_run_ids = st.multiselect(
+                                    "Select Runs to Plot",
+                                    options=[r["run_id"] for r in runs],
+                                    default=[runs[0]["run_id"]] if runs else [],
+                                    format_func=lambda rid: next(f"v{r['version_number']} (Run {r['run_id']}) — {r['universe']} — {r['run_date']:%Y-%m-%d}" for r in runs if r["run_id"] == rid)
+                                )
+                            with col_c2:
+                                norm = st.checkbox("Normalize (100)", value=True)
+                            with col_c3:
+                                log = st.checkbox("Log Scale", value=True)
+                            
+                            run_selections = []
+                            for rid in selected_run_ids:
+                                r = next(r for r in runs if r["run_id"] == rid)
+                                run_selections.append({
+                                    "run_id": rid,
+                                    "label": f"v{r['version_number']} ({r['run_date']:%Y-%m-%d})",
+                                    "equity_curve_path": r["equity_curve_path"],
+                                    "sample_split_date": r.get("sample_split_date")
+                                })
+                            
+                            render_equity_chart(run_selections, normalize=norm, log_scale=log)
                     else:
-                        col_c1, col_c2, col_c3 = st.columns([3, 1, 1])
-                        with col_c1:
-                            selected_run_ids = st.multiselect(
-                                "Select Runs to Plot",
-                                options=[r["run_id"] for r in runs],
-                                default=[runs[0]["run_id"]] if runs else [],
-                                format_func=lambda rid: next(f"v{r['version_number']} — {r['universe']} — {r['run_date']:%Y-%m-%d}" for r in runs if r["run_id"] == rid)
-                            )
-                        with col_c2:
-                            norm = st.checkbox("Normalize (100)", value=True)
-                        with col_c3:
-                            log = st.checkbox("Log Scale", value=False)
-                        
-                        run_selections = []
-                        for rid in selected_run_ids:
-                            r = next(r for r in runs if r["run_id"] == rid)
-                            run_selections.append({
-                                "run_id": rid,
-                                "label": f"v{r['version_number']} ({r['run_date']:%Y-%m-%d})",
-                                "equity_curve_path": r["equity_curve_path"],
-                                "sample_split_date": r.get("sample_split_date")
-                            })
-                        
-                        render_equity_chart(run_selections, normalize=norm, log_scale=log)
-                else:
-                    st.info("📈 No backtest runs yet. Use `alphaforge ingest` to import data.")
+                        st.info("📈 No backtest runs yet. Use `alphaforge ingest` to import data.")
+                except Exception as e:
+                    st.error(f"Error in Equity Curves tab: {e}")
 
             # Tab 2: Run Metrics
             with tab2:
-                version_options = ["All"] + [f"v{v.version_number}" for v in versions]
-                v_filter = st.selectbox("Filter by Version", version_options, index=0, key="metrics_version_filter")
+                try:
+                    version_options = ["All"] + [f"v{v.version_number}" for v in versions]
+                    v_filter = st.selectbox("Filter by Version", version_options, index=0, key="metrics_version_filter")
 
-                if v_filter == "All":
-                    filtered_runs = runs
-                else:
-                    v_num = int(v_filter[1:])
-                    filtered_runs = [r for r in runs if r["version_number"] == v_num]
-
-                if v_filter != "All" and versions:
-                    try:
+                    if v_filter == "All":
+                        filtered_runs = runs
+                    else:
                         v_num = int(v_filter[1:])
-                        v_runs = [r for r in runs if r["version_number"] == v_num]
-                        is_run = next((r for r in v_runs if r.get("is_in_sample")), None)
-                        oos_run = next((r for r in v_runs if r.get("is_in_sample") == False), None)
-                        
-                        if is_run and oos_run:
-                            st.markdown("### 🌓 IS vs OOS Comparison")
-                            is_sharpe = is_run.get("sharpe") or 0
-                            oos_sharpe = oos_run.get("sharpe") or 0
+                        filtered_runs = [r for r in runs if r["version_number"] == v_num]
+
+                    if v_filter != "All" and versions:
+                        try:
+                            v_num = int(v_filter[1:])
+                            v_runs = [r for r in runs if r["version_number"] == v_num]
+                            is_run = next((r for r in v_runs if r.get("is_in_sample")), None)
+                            oos_run = next((r for r in v_runs if r.get("is_in_sample") == False), None)
                             
-                            if is_sharpe != 0:
-                                degrad = (oos_sharpe - is_sharpe) / abs(is_sharpe) * 100
-                            else:
-                                degrad = 0
+                            if is_run and oos_run:
+                                st.markdown("### 🌓 IS vs OOS Comparison")
+                                is_sharpe = is_run.get("sharpe") or 0
+                                oos_sharpe = oos_run.get("sharpe") or 0
                                 
-                            m_col1, m_col2, m_col3 = st.columns(3)
-                            m_col1.metric("IS Sharpe", f"{is_sharpe:.2f}")
-                            m_col2.metric("OOS Sharpe", f"{oos_sharpe:.2f}", delta=f"{degrad:.1f}%", delta_color="inverse")
-                            
-                            if oos_sharpe < (is_sharpe * 0.5):
-                                st.warning("⚠️ High Degradation: OOS Sharpe is less than 50% of IS Sharpe!")
-                            
-                            st.divider()
-                    except (ValueError, StopIteration):
-                        pass
+                                if is_sharpe != 0:
+                                    degrad = (oos_sharpe - is_sharpe) / abs(is_sharpe) * 100
+                                else:
+                                    degrad = 0
+                                    
+                                m_col1, m_col2, m_col3 = st.columns(3)
+                                m_col1.metric("IS Sharpe", f"{is_sharpe:.2f}")
+                                m_col2.metric("OOS Sharpe", f"{oos_sharpe:.2f}", delta=f"{degrad:.1f}%", delta_color="inverse")
+                                
+                                if oos_sharpe < (is_sharpe * 0.5):
+                                    st.warning("⚠️ High Degradation: OOS Sharpe is less than 50% of IS Sharpe!")
+                                
+                                st.divider()
+                        except (ValueError, StopIteration):
+                            pass
 
-                if filtered_runs:
-                    df_metrics = pd.DataFrame(filtered_runs)
-                    display_cols = [
-                        "run_id", "version_number", "run_date", "universe", 
-                        "cagr", "sharpe", "max_drawdown", "mar", "profit_factor",
-                        "total_trades", "pct_wins", "expectancy", "net_profit"
-                    ]
-                    df_display = df_metrics[display_cols].copy()
-                    
-                    def style_metrics(styler):
-                        styler.background_gradient(subset=['cagr'], cmap="RdYlGn")
-                        styler.background_gradient(subset=['sharpe'], cmap="RdYlGn")
-                        styler.format({
-                            "run_date": "{:%Y-%m-%d}",
-                            "cagr": "{:.2f}%",
-                            "max_drawdown": "{:.2f}%",
-                            "sharpe": "{:.2f}",
-                            "margin": "{:.2f}",
-                            "pct_wins": "{:.2f}%",
-                            "net_profit": "${:,.0f}"
-                        })
-                        return styler
-
-                    st.dataframe(
-                        df_display.style.pipe(style_metrics),
-                        use_container_width=True,
-                        hide_index=True
-                    )
-
-                    with st.expander(":material/attachment: Attach Files to Individual Run"):
-                        st.caption("Missing an equity curve or report? Attach it here to a specific run.")
+                    if filtered_runs:
+                        df_metrics = pd.DataFrame(filtered_runs)
+                        display_cols = [
+                            "run_id", "version_number", "run_date", "universe", 
+                            "cagr", "sharpe", "max_drawdown", "mar", "profit_factor",
+                            "total_trades", "pct_wins", "expectancy", "net_profit"
+                        ]
+                        df_display = df_metrics[display_cols].copy()
                         
-                        a_col1, a_col2 = st.columns([1, 2])
-                        with a_col1:
-                            # Map run labels to run IDs
-                            run_map = {f"Test {r['test_number']} ({r['run_date']:%Y-%m-%d})": r["run_id"] for r in filtered_runs}
-                            target_run_label = st.selectbox("Select Target Run", options=list(run_map.keys()), key="attach_target_run")
-                            target_run_id = run_map[target_run_label]
+                        def style_metrics(styler):
+                            try:
+                                styler.background_gradient(subset=['cagr'], cmap="RdYlGn")
+                                styler.background_gradient(subset=['sharpe'], cmap="RdYlGn")
+                            except (ImportError, ValueError, RuntimeError):
+                                # Fallback if matplotlib is missing or gradient fails
+                                pass
+
+                            styler.format({
+                                "run_date": "{:%Y-%m-%d}",
+                                "cagr": "{:.2f}%",
+                                "max_drawdown": "{:.2f}%",
+                                "sharpe": "{:.2f}",
+                                "mar": "{:.2f}",
+                                "pct_wins": "{:.2f}%",
+                                "net_profit": "${:,.0f}"
+                            })
+                            return styler
+
+                        st.dataframe(
+                            df_display.style.pipe(style_metrics),
+                            use_container_width=True,
+                            hide_index=True
+                        )
+
+                        st.divider()
+                        st.subheader("Detailed Run View")
                         
-                        with a_col2:
-                            attach_type = st.radio("What to attach?", ["Equity Curve (CSV)", "RealTest Report (Folder)"], horizontal=True)
+                        # Store runs in a map for easy lookup by ID
+                        filtered_run_map = {r["run_id"]: r for r in filtered_runs}
+                        selected_run_id = st.selectbox(
+                            "Select Run for Detailed View",
+                            options=list(filtered_run_map.keys()),
+                            format_func=lambda rid: f"v{filtered_run_map[rid]['version_number']} (Run {rid}) — {filtered_run_map[rid]['run_date']:%Y-%m-%d}",
+                            key="metrics_run_details_select"
+                        )
+                        selected_run_for_details = filtered_run_map.get(selected_run_id)
+
+                        if selected_run_for_details:
+                            d_col1, d_col2 = st.columns(2)
+                            with d_col1:
+                                st.markdown("**Parameters**")
+                                # parameters_json might be None
+                                params = selected_run_for_details.get("parameters_json")
+                                st.json(params if params else {})
+                            with d_col2:
+                                st.markdown("**Metrics Array**")
+                                # Omit large/path fields
+                                exclude_keys = ["parameters_json", "custom_metrics_json", "equity_curve_path", "trade_log_path"]
+                                display_metrics = {k: v for k, v in selected_run_for_details.items() if k not in exclude_keys}
+                                st.json(display_metrics)
+                        st.divider()
+
+                        with st.expander(":material/attachment: Attach Files to Individual Run"):
+                            st.caption("Missing an equity curve or report? Attach it here to a specific run.")
                             
-                            if attach_type == "Equity Curve (CSV)":
-                                eq_path = st.text_input("Absolute Path to Equity CSV", placeholder=r"C:\RealTest\Output\MyStrat_stats.csv", key="attach_eq_path")
-                                if st.button("Link Equity Curve"):
-                                    if not eq_path or not Path(eq_path).exists():
-                                        st.error("Invalid path.")
-                                    else:
-                                        try:
-                                            with st.spinner("Processing..."):
-                                                attach_equity(session, target_run_id, Path(eq_path), config, strategy.name)
-                                                session.commit()
-                                                st.success("Equity curve attached!")
-                                                st.rerun()
-                                        except Exception as e:
-                                            st.error(f"Error: {e}")
+                            a_col1, a_col2 = st.columns([1, 2])
+                            with a_col1:
+                                # Map run labels to run IDs
+                                run_map = {f"Run {r['run_id']} ({r['run_date']:%Y-%m-%d})": r["run_id"] for r in filtered_runs}
+                                target_run_label = st.selectbox("Select Target Run", options=list(run_map.keys()), key="attach_target_run")
+                                target_run_id = run_map[target_run_label]
                             
-                            else:
-                                rep_path = st.text_input("Absolute Path to Report Folder", placeholder=r"D:\RealTest\Output\Reports\MyStrat", key="attach_rep_path")
-                                if st.button("Link Report Folder"):
-                                    if not rep_path or not Path(rep_path).exists():
-                                        st.error("Invalid path.")
-                                    else:
-                                        try:
-                                            with st.spinner("Processing..."):
-                                                attach_report(session, target_run_id, Path(rep_path), config, strategy.slug)
-                                                session.commit()
-                                                st.success("Report attached!")
-                                                st.rerun()
-                                        except Exception as e:
-                                            st.error(f"Error: {e}")
-                else:
-                    st.info("No runs found for selected filters.")
+                            with a_col2:
+                                attach_type = st.radio("What to attach?", ["Equity Curve (CSV)", "RealTest Report (Folder)"], horizontal=True)
+                                
+                                if attach_type == "Equity Curve (CSV)":
+                                    eq_path = st.text_input("Absolute Path to Equity CSV", placeholder=r"C:\RealTest\Output\MyStrat_stats.csv", key="attach_eq_path")
+                                    if st.button("Link Equity Curve"):
+                                        if not eq_path or not Path(eq_path).exists():
+                                            st.error("Invalid path.")
+                                        else:
+                                            try:
+                                                with st.spinner("Processing..."):
+                                                    attach_equity(session, target_run_id, Path(eq_path), config, strategy.name)
+                                                    session.commit()
+                                                    st.success("Equity curve attached!")
+                                                    st.rerun()
+                                            except Exception as e:
+                                                st.error(f"Error: {e}")
+                                
+                                else:
+                                    rep_path = st.text_input("Absolute Path to Report Folder", placeholder=r"D:\RealTest\Output\Reports\MyStrat", key="attach_rep_path")
+                                    if st.button("Link Report Folder"):
+                                        if not rep_path or not Path(rep_path).exists():
+                                            st.error("Invalid path.")
+                                        else:
+                                            try:
+                                                with st.spinner("Processing..."):
+                                                    attach_report(session, target_run_id, Path(rep_path), config, strategy.slug)
+                                                    session.commit()
+                                                    st.success("Report attached!")
+                                                    st.rerun()
+                                            except Exception as e:
+                                                st.error(f"Error: {e}")
+                    else:
+                        st.info("No runs found for selected filters.")
+                except Exception as e:
+                    st.error(f"Error in Run Metrics tab: {e}")
 
             # Tab 3: Heatmap
             with tab3:
-                from alphaforge.analysis.heatmap import prepare_heatmap_data
-                st.subheader("Parameter Heatmap")
-                
-                all_params = set()
-                for r in runs:
-                    p_json = r.get("parameters_json")
-                    if isinstance(p_json, dict):
-                        all_params.update(p_json.keys())
-                
-                if not all_params:
-                    st.info("No parameters found for this strategy runs.")
-                else:
-                    h_col1, h_col2, h_col3 = st.columns(3)
-                    with h_col1:
-                        x_p = st.selectbox("X-Axis Parameter", sorted(list(all_params)), index=0)
-                    with h_col2:
-                        y_p = st.selectbox("Y-Axis Parameter", sorted(list(all_params)), index=min(1, len(all_params)-1))
-                    with h_col3:
-                        core_metrics = ["cagr", "sharpe", "max_drawdown", "mar", "profit_factor", "net_profit"]
-                        unique_custom_keys = set()
-                        for r in runs:
-                            c_m = r.get("custom_metrics_json")
-                            if isinstance(c_m, dict):
-                                unique_custom_keys.update(c_m.keys())
-                        met = st.selectbox("Color Metric", core_metrics + sorted(list(unique_custom_keys)))
+                try:
+                    from alphaforge.analysis.heatmap import prepare_heatmap_data
+                    st.subheader("Parameter Heatmap")
                     
-                    remaining_params = sorted([p for p in all_params if p not in [x_p, y_p]])
-                    fixed_params = {}
-                    if remaining_params:
-                        st.markdown("##### Filter Remaining Parameters")
-                        f_cols = st.columns(min(len(remaining_params), 4))
-                        for idx, p in enumerate(remaining_params):
-                            unique_vals = sorted(list(set(
-                                r.get("parameters_json", {}).get(p) 
-                                for r in runs 
-                                if isinstance(r.get("parameters_json"), dict) and r.get("parameters_json", {}).get(p) is not None
-                            )))
-                            with f_cols[idx % 4]:
-                                fixed_params[p] = st.selectbox(f"Fix {p}", unique_vals, key=f"fix_{p}")
+                    all_params = set()
+                    for r in runs:
+                        p_json = r.get("parameters_json")
+                        if isinstance(p_json, dict):
+                            all_params.update(p_json.keys())
                     
-                    heatmap_df = prepare_heatmap_data(runs, x_p, y_p, met, fixed_params)
-                    
-                    if heatmap_df.empty:
-                        st.warning("No data found for this parameter combination. Try adjusting filters.")
+                    if not all_params:
+                        st.info("No parameters found for this strategy runs.")
                     else:
-                        import plotly.express as px
-                        fig_heat = px.imshow(
-                            heatmap_df,
-                            text_auto=".2f",
-                            aspect="auto",
-                            color_continuous_scale="RdYlGn" if met not in ["max_drawdown"] else "RdYlGn_r",
-                            labels=dict(x=x_p, y=y_p, color=met),
-                            title=f"{met} Heatmap: {x_p} vs {y_p}"
-                        )
-                        st.plotly_chart(fig_heat, use_container_width=True)
+                        h_col1, h_col2, h_col3 = st.columns(3)
+                        with h_col1:
+                            x_p = st.selectbox("X-Axis Parameter", sorted(list(all_params)), index=0)
+                        with h_col2:
+                            y_p = st.selectbox("Y-Axis Parameter", sorted(list(all_params)), index=min(1, len(all_params)-1))
+                        with h_col3:
+                            core_metrics = ["cagr", "sharpe", "max_drawdown", "mar", "profit_factor", "net_profit"]
+                            unique_custom_keys = set()
+                            for r in runs:
+                                c_m = r.get("custom_metrics_json")
+                                if isinstance(c_m, dict):
+                                    unique_custom_keys.update(c_m.keys())
+                            met = st.selectbox("Color Metric", core_metrics + sorted(list(unique_custom_keys)))
                         
-                        total_cells = heatmap_df.size
-                        profitable_cells = (heatmap_df > 0).sum().sum()
-                        robustness_pct = (profitable_cells / total_cells * 100) if total_cells > 0 else 0
-                        st.caption(f"🎯 Robustness: {robustness_pct:.0f}% of parameter space is profitable ({profitable_cells}/{total_cells} cells)")
+                        remaining_params = sorted([p for p in all_params if p not in [x_p, y_p]])
+                        fixed_params = {}
+                        if remaining_params:
+                            st.markdown("##### Filter Remaining Parameters")
+                            f_cols = st.columns(min(len(remaining_params), 4))
+                            for idx, p in enumerate(remaining_params):
+                                unique_vals = sorted(list(set(
+                                    r.get("parameters_json", {}).get(p) 
+                                    for r in runs 
+                                    if isinstance(r.get("parameters_json"), dict) and r.get("parameters_json", {}).get(p) is not None
+                                )))
+                                with f_cols[idx % 4]:
+                                    fixed_params[p] = st.selectbox(f"Fix {p}", unique_vals, key=f"fix_{p}")
+                        
+                        heatmap_df = prepare_heatmap_data(runs, x_p, y_p, met, fixed_params)
+                        
+                        if heatmap_df.empty:
+                            st.warning("No data found for this parameter combination. Try adjusting filters.")
+                        else:
+                            import plotly.express as px
+                            fig_heat = px.imshow(
+                                heatmap_df,
+                                text_auto=".2f",
+                                aspect="auto",
+                                color_continuous_scale="RdYlGn" if met not in ["max_drawdown"] else "RdYlGn_r",
+                                labels=dict(x=x_p, y=y_p, color=met),
+                                title=f"{met} Heatmap: {x_p} vs {y_p}"
+                            )
+                            st.plotly_chart(fig_heat, use_container_width=True)
+                            
+                            total_cells = heatmap_df.size
+                            profitable_cells = (heatmap_df > 0).sum().sum()
+                            robustness_pct = (profitable_cells / total_cells * 100) if total_cells > 0 else 0
+                            st.caption(f"🎯 Robustness: {robustness_pct:.0f}% of parameter space is profitable ({profitable_cells}/{total_cells} cells)")
+                except Exception as e:
+                    st.error(f"Error in Heatmap tab: {e}")
 
             # Tab 4: Trade Log
             with tab4:
-                if runs:
-                    selected_run_for_trades = st.selectbox(
-                        "Select Run for Trade Log",
-                        options=runs,
-                        format_func=lambda r: f"v{r['version_number']} — {r['run_date']:%Y-%m-%d}"
-                    )
-                    
-                    trade_path = selected_run_for_trades.get("trade_log_path")
-                    if trade_path and os.path.exists(trade_path):
-                        df_trades = pd.read_parquet(trade_path)
+                try:
+                    if runs:
+                        run_map_trades = {r["run_id"]: r for r in runs}
+                        selected_run_id_for_trades = st.selectbox(
+                            "Select Run for Trade Log",
+                            options=list(run_map_trades.keys()),
+                            format_func=lambda rid: f"v{run_map_trades[rid]['version_number']} (Run {rid}) — {run_map_trades[rid]['run_date']:%Y-%m-%d}"
+                        )
+                        selected_run_for_trades = run_map_trades.get(selected_run_id_for_trades)
                         
-                        t_col1, t_col2, t_col3, t_col4 = st.columns(4)
-                        win_rate = (df_trades["PnL"] > 0).mean() * 100
-                        avg_win = df_trades[df_trades["PnL"] > 0]["PnL"].mean()
-                        avg_loss = df_trades[df_trades["PnL"] <= 0]["PnL"].mean()
-                        
-                        t_col1.metric("Total Trades", len(df_trades))
-                        t_col2.metric("Win Rate", f"{win_rate:.1f}%")
-                        t_col3.metric("Avg Win", f"${avg_win:,.2f}")
-                        t_col4.metric("Avg Loss", f"${avg_loss:,.2f}")
-                        
-                        f_col1, f_col2 = st.columns(2)
-                        with f_col1:
-                            symbols = st.multiselect("Filter Symbols", options=sorted(df_trades["Symbol"].unique()))
-                        with f_col2:
-                            direction = st.multiselect("Direction", options=["Long", "Short"])
-                        
-                        filtered_trades = df_trades
-                        if symbols:
-                            filtered_trades = filtered_trades[filtered_trades["Symbol"].isin(symbols)]
-                        if direction:
-                            filtered_trades = filtered_trades[filtered_trades["Direction"].isin(direction)]
+                        trade_path = selected_run_for_trades.get("trade_log_path")
+                        if trade_path and os.path.exists(trade_path):
+                            df_trades = pd.read_parquet(trade_path)
                             
-                        st.dataframe(filtered_trades, use_container_width=True, hide_index=True)
+                            t_col1, t_col2, t_col3, t_col4 = st.columns(4)
+                            win_rate = (df_trades["PnL"] > 0).mean() * 100
+                            avg_win = df_trades[df_trades["PnL"] > 0]["PnL"].mean()
+                            avg_loss = df_trades[df_trades["PnL"] <= 0]["PnL"].mean()
+                            
+                            t_col1.metric("Total Trades", len(df_trades))
+                            t_col2.metric("Win Rate", f"{win_rate:.1f}%")
+                            t_col3.metric("Avg Win", f"${avg_win:,.2f}")
+                            t_col4.metric("Avg Loss", f"${avg_loss:,.2f}")
+                            
+                            f_col1, f_col2 = st.columns(2)
+                            with f_col1:
+                                symbols = st.multiselect("Filter Symbols", options=sorted(df_trades["Symbol"].unique()))
+                            with f_col2:
+                                direction = st.multiselect("Direction", options=["Long", "Short"])
+                            
+                            filtered_trades = df_trades
+                            if symbols:
+                                filtered_trades = filtered_trades[filtered_trades["Symbol"].isin(symbols)]
+                            if direction:
+                                filtered_trades = filtered_trades[filtered_trades["Direction"].isin(direction)]
+                                
+                            st.dataframe(filtered_trades, use_container_width=True, hide_index=True)
+                        else:
+                            st.info("No trade log found for this run. Please ensure 'trade_log_path' is populated.")
                     else:
-                        st.info("No trade log found for this run. Please ensure 'trade_log_path' is populated.")
-                else:
-                    st.info("No runs available.")
+                        st.info("No runs available.")
+                except Exception as e:
+                    st.error(f"Error in Trade Log tab: {e}")
 
             # Tab 5: RealTest Report
             with tab5:
-                if runs:
-                    selected_run_for_report = st.selectbox(
-                        "Select Run for Report",
-                        options=runs,
-                        format_func=lambda r: f"v{r['version_number']} — {r['run_date']:%Y-%m-%d}",
-                        key="report_run_select"
-                    )
+                try:
+                    if runs:
+                        # Pre-calculate which runs have HTML reports
+                        runs_with_report = set()
+                        for r in runs:
+                            arts = artifact_repo.list_by_run(r["run_id"])
+                            if any(a.artifact_type == ArtifactType.html_report for a in arts):
+                                runs_with_report.add(r["run_id"])
+                        
+                        # Find first run that has a report to use as default index
+                        default_index = 0
+                        for i, r in enumerate(runs):
+                            if r["run_id"] in runs_with_report:
+                                default_index = i
+                                break
 
-                    artifacts = artifact_repo.list_by_run(selected_run_for_report["run_id"])
-                    report_artifact = next(
-                        (a for a in artifacts if a.artifact_type == ArtifactType.html_report),
-                        None,
-                    )
+                        run_lookup = {r["run_id"]: r for r in runs}
+                        selected_run_id_for_report = st.selectbox(
+                            "Select Run for Report",
+                            options=list(run_lookup.keys()),
+                            index=default_index,
+                            format_func=lambda rid: f"v{run_lookup[rid]['version_number']} (Run {rid}) — {run_lookup[rid]['run_date']:%Y-%m-%d}" + (" 📄" if rid in runs_with_report else ""),
+                            key="report_run_select"
+                        )
+                        selected_run_for_report = run_lookup.get(selected_run_id_for_report)
 
-                    if report_artifact and os.path.exists(report_artifact.file_path):
-                        report_path = Path(report_artifact.file_path)
-                        report_dir = report_path.parent
-
-                        with open(report_path, "r", encoding="utf-8") as f:
-                            html_content = f.read()
-
-                        # Inline images as base64 data URIs so they render
-                        # inside the Streamlit iframe.
-                        def _replace_img_src(match):
-                            src = match.group(1)
-                            img_path = (report_dir / src).resolve()
-                            if img_path.exists():
-                                suffix = img_path.suffix.lower()
-                                mime = {
-                                    ".png": "image/png",
-                                    ".jpg": "image/jpeg",
-                                    ".jpeg": "image/jpeg",
-                                    ".gif": "image/gif",
-                                }.get(suffix, "application/octet-stream")
-                                data = base64.b64encode(img_path.read_bytes()).decode()
-                                return f'src="data:{mime};base64,{data}"'
-                            return match.group(0)
-
-                        html_content = re.sub(
-                            r'src="([^"]+\.(?:png|jpg|jpeg|gif))"',
-                            _replace_img_src,
-                            html_content,
-                            flags=re.IGNORECASE,
+                        artifacts = artifact_repo.list_by_run(selected_run_for_report["run_id"])
+                        report_artifact = next(
+                            (a for a in artifacts if a.artifact_type == ArtifactType.html_report),
+                            None,
                         )
 
-                        components.html(html_content, height=800, scrolling=True)
+                        if report_artifact and os.path.exists(report_artifact.file_path):
+                            report_path = Path(report_artifact.file_path)
+                            report_dir = report_path.parent
 
-                        if st.button("🌐 Open in Browser", key="open_report_browser"):
-                            webbrowser.open(str(report_path))
+                            with open(report_path, "r", encoding="utf-8") as f:
+                                html_content = f.read()
+
+                            # Inline images as base64 data URIs so they render
+                            # inside the Streamlit iframe.
+                            def _replace_img_src(match):
+                                src = match.group(1)
+                                img_path = (report_dir / src).resolve()
+                                if img_path.exists():
+                                    suffix = img_path.suffix.lower()
+                                    mime = {
+                                        ".png": "image/png",
+                                        ".jpg": "image/jpeg",
+                                        ".jpeg": "image/jpeg",
+                                        ".gif": "image/gif",
+                                    }.get(suffix, "application/octet-stream")
+                                    data = base64.b64encode(img_path.read_bytes()).decode()
+                                    return f'src="data:{mime};base64,{data}"'
+                                return match.group(0)
+
+                            html_content = re.sub(
+                                r'src="([^"]+\.(?:png|jpg|jpeg|gif))"',
+                                _replace_img_src,
+                                html_content,
+                                flags=re.IGNORECASE,
+                            )
+                            
+                            # Inject custom CSS for dark mode readability
+                            dark_mode_css = """
+                            <style>
+                                body { color: #e0e0e0 !important; background-color: #0e1117 !important; font-family: sans-serif; }
+                                table { border-collapse: collapse; width: 100%; background-color: #1a1c24 !important; color: #e0e0e0 !important; }
+                                th, td { border: 1px solid #444 !important; padding: 8px; text-align: left; }
+                                th { background-color: #262730 !important; }
+                                tr:nth-child(even) { background-color: #21252e !important; background-image: none !important; }
+                                tr:hover { background-color: #313641 !important; }
+                                .text-red { color: #ff4b4b !important; }
+                                .text-green { color: #00c853 !important; }
+                                /* Override any hardcoded black text or backgrounds */
+                                [style*="color: black"], [style*="color:#000"] { color: #e0e0e0 !important; }
+                                [style*="background-color: white"], [style*="background-color:#fff"] { background-color: #1a1c24 !important; }
+                            </style>
+                            """
+                            html_content = dark_mode_css + html_content
+
+                            components.html(html_content, height=800, scrolling=True)
+
+                            if st.button("🌐 Open in Browser", key="open_report_browser"):
+                                webbrowser.open(str(report_path))
+                        else:
+                            st.info("No HTML report artifact found for this run.")
                     else:
-                        st.info("No HTML report artifact found for this run.")
-                else:
-                    st.info("No runs available.")
+                        st.info("No runs available.")
+                except Exception as e:
+                    st.error(f"Error in RealTest Report tab: {e}")
     except Exception as e:
         st.error(f"⚠️ An error occurred: {e}. Try refreshing the page.")
     finally:
